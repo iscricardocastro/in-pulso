@@ -1,9 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const publicRoutes = ["/login", "/reset-password", "/manifest.webmanifest", "/icon.svg", "/logo/", "/sw.js"];
+const publicRoutes = ["/login", "/reset-password", "/manifest.webmanifest", "/icon.svg", "/sw.js"];
+const publicPrefixes = ["/logo/"];
+const PUBLIC_FILE = /\.(?:avif|css|gif|ico|jpg|jpeg|js|map|png|svg|txt|webmanifest|webp|woff|woff2)$/i;
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isPublic =
+    publicRoutes.includes(pathname) ||
+    publicPrefixes.some((route) => pathname.startsWith(route)) ||
+    PUBLIC_FILE.test(pathname);
+
+  if (isPublic) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -27,16 +39,9 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublic = publicRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
-  if (!user && !isPublic) {
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  if (user && request.nextUrl.pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
@@ -44,5 +49,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
