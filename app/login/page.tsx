@@ -1,14 +1,17 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import type { Route } from "next";
 import { BarChart3, Cloud, FileText, Headphones, LockKeyhole, Package, Rocket, ShieldCheck, ShoppingCart, Users } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { LoginForm } from "@/features/auth/login-form";
+import { cn } from "@/lib/utils";
 
 const modules = [
-  { label: "Inventarios", icon: Package, tone: "text-teal-500" },
-  { label: "Ventas", icon: ShoppingCart, tone: "text-sky-500" },
-  { label: "Compras", icon: FileText, tone: "text-blue-600" },
-  { label: "Reportes", icon: BarChart3, tone: "text-violet-600" },
-  { label: "Control", icon: Users, tone: "text-pink-500" },
+  { label: "Inventarios", icon: Package, tone: "text-teal-500", delay: "pricing-delay-0" },
+  { label: "Ventas", icon: ShoppingCart, tone: "text-sky-500", delay: "pricing-delay-1" },
+  { label: "Compras", icon: FileText, tone: "text-blue-600", delay: "pricing-delay-2" },
+  { label: "Reportes", icon: BarChart3, tone: "text-violet-600", delay: "pricing-delay-3" },
+  { label: "Control", icon: Users, tone: "text-pink-500", delay: "pricing-delay-4" },
 ];
 
 const trustItems = [
@@ -35,25 +38,24 @@ export default function LoginPage() {
               />
               <p className="text-sm font-semibold uppercase tracking-[0.42em] text-slate-500 dark:text-slate-300">Pulso</p>
               <div className="mt-3 flex items-center gap-4">
-                <span className="h-px w-16 bg-teal-400" />
+                <span className="pricing-line h-px w-16 bg-teal-400" />
                 <p className="text-sm font-semibold tracking-[0.36em] text-slate-700 dark:text-slate-200">DE INMEXICO</p>
-                <span className="h-px w-16 bg-pink-500" />
+                <span className="pricing-line h-px w-16 bg-pink-500" />
               </div>
               <h1 className="mt-7 max-w-xl text-4xl font-semibold leading-tight tracking-tight text-slate-950 dark:text-white">
                 El sistema que da <span className="bg-gradient-to-r from-blue-600 via-violet-600 to-pink-500 bg-clip-text text-transparent">pulso</span> a tu negocio.
               </h1>
 
               <div className="mt-8 grid w-full grid-cols-5 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm shadow-slate-950/5 dark:border-white/10 dark:bg-white/[0.05]">
-                {modules.map((item, index) => (
-                  <div key={item.label} className="flex min-h-24 flex-col items-center justify-center gap-2 px-3 text-center">
-                    <item.icon className={`h-7 w-7 ${item.tone}`} strokeWidth={2.2} />
+                {modules.map((item) => (
+                  <div key={item.label} className={cn("pricing-module-motion flex min-h-24 flex-col items-center justify-center gap-2 px-3 text-center", item.delay)}>
+                    <item.icon className={cn("pricing-module-icon h-7 w-7", item.tone)} strokeWidth={2.2} />
                     <p className="text-[0.7rem] font-bold uppercase tracking-[0.12em] text-slate-800 dark:text-slate-100">{item.label}</p>
-                    {index < modules.length - 1 ? <span className="absolute hidden" /> : null}
                   </div>
                 ))}
               </div>
 
-              <div className="mt-7 flex w-full items-center justify-center rounded-full bg-gradient-to-r from-teal-500 via-blue-600 to-pink-500 p-1 shadow-lg shadow-blue-600/20">
+              <Link className="pricing-gradient-motion mt-7 flex w-full items-center justify-center rounded-full bg-gradient-to-r from-teal-500 via-blue-600 to-pink-500 p-1 shadow-lg shadow-blue-600/20" href={"/pricing" as Route}>
                 <div className="flex w-full items-center justify-center gap-4 rounded-full bg-white/10 px-5 py-3 text-white">
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-blue-600">
                     <Rocket className="h-5 w-5" />
@@ -63,11 +65,11 @@ export default function LoginPage() {
                     <p className="text-sm text-white/90">Acceso anticipado para operar con más control.</p>
                   </div>
                 </div>
-              </div>
+              </Link>
 
               <div className="mt-8 grid w-full grid-cols-2 gap-3">
                 {trustItems.map((item) => (
-                  <div key={item.label} className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-3 text-left text-sm font-medium text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
+                  <div key={item.label} className="pricing-contact-motion flex items-center gap-3 rounded-xl border border-slate-200/80 bg-white/70 px-4 py-3 text-left text-sm font-medium text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200">
                     <item.icon className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                     {item.label}
                   </div>
@@ -95,8 +97,8 @@ export default function LoginPage() {
           </Suspense>
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:hidden">
             {modules.slice(0, 4).map((item) => (
-              <div key={item.label} className="flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-200">
-                <item.icon className={`h-3.5 w-3.5 ${item.tone}`} />
+              <div key={item.label} className={cn("pricing-module-motion flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-200", item.delay)}>
+                <item.icon className={cn("pricing-module-icon h-3.5 w-3.5", item.tone)} />
                 {item.label}
               </div>
             ))}

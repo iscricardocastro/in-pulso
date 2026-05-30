@@ -15,7 +15,7 @@ export function LoginForm() {
   const { loading, handleSubmit } = useLoginForm();
 
   return (
-    <Card className="w-full max-w-md overflow-hidden rounded-[1.75rem] border-slate-200/90 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07] dark:shadow-black/30">
+    <Card className="pricing-soft-pop w-full max-w-md overflow-hidden rounded-[1.75rem] border-slate-200/90 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07] dark:shadow-black/30">
       <CardHeader className="p-7 pb-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <Link
@@ -80,7 +80,7 @@ export function LoginForm() {
             </div>
           </div>
           <Button
-            className="h-12 w-full rounded-xl bg-gradient-to-r from-teal-500 via-blue-600 to-pink-500 text-base font-bold text-white shadow-lg shadow-blue-600/25 hover:opacity-95 hover:shadow-xl hover:shadow-blue-600/25"
+            className="pricing-gradient-motion h-12 w-full rounded-xl bg-gradient-to-r from-teal-500 via-blue-600 to-pink-500 text-base font-bold text-white shadow-lg shadow-blue-600/25 hover:opacity-95 hover:shadow-xl hover:shadow-blue-600/25"
             disabled={loading}
             type="submit"
           >
