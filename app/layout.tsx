@@ -8,6 +8,10 @@ import { Analytics } from "@vercel/analytics/next"
 export const metadata: Metadata = {
   title: "Pulso | InMexico",
   description: "Inventario operativo",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
