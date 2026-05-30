@@ -1,0 +1,283 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+}
+
+:root {
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 217 78% 34%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 214 32% 92%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 214 32% 92%;
+  --muted-foreground: 215 16% 39%;
+  --accent: 199 89% 94%;
+  --accent-foreground: 217 78% 26%;
+  --destructive: 0 72% 46%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 88%;
+  --input: 214 32% 86%;
+  --ring: 217 78% 34%;
+  --radius: 0.8rem;
+}
+
+.dark {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 213 94% 68%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 32% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 32% 17%;
+  --muted-foreground: 215 20% 70%;
+  --accent: 217 32% 18%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 42%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 32% 20%;
+  --input: 217 32% 22%;
+  --ring: 213 94% 68%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background:
+    linear-gradient(180deg, hsl(199 89% 97%) 0%, hsl(var(--background)) 280px),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+body.has-modal {
+  overflow: hidden;
+  touch-action: none;
+}
+
+body.has-modal::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: hsl(var(--background) / 0.72);
+  backdrop-filter: blur(12px) saturate(0.92);
+  pointer-events: none;
+  animation: enter-soft 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dark body {
+  background:
+    linear-gradient(180deg, hsl(222 47% 10%) 0%, hsl(var(--background)) 300px),
+    hsl(var(--background));
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.18);
+}
+
+@keyframes enter-soft {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-soft {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes panel-soft {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer-soft {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -180% 0;
+  }
+}
+
+.animate-enter {
+  animation: enter-soft 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pop {
+  animation: pop-soft 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-slide-panel {
+  animation: panel-soft 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.motion-surface {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.motion-surface:hover {
+  transform: translateY(-1px);
+  border-color: hsl(var(--primary) / 0.32);
+  box-shadow: 0 14px 34px hsl(222 47% 11% / 0.08);
+}
+
+.motion-press {
+  transition:
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.motion-press:active {
+  transform: scale(0.98);
+}
+
+.motion-list-item {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.motion-list-item:hover {
+  transform: translateX(2px);
+  border-color: hsl(var(--primary) / 0.28);
+}
+
+.motion-panel > summary + * {
+  animation: panel-soft 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.motion-shimmer {
+  background:
+    linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--accent) / 0.7) 45%, hsl(var(--muted)) 90%);
+  background-size: 220% 100%;
+  animation: shimmer-soft 1.2s ease-out infinite;
+}
+
+.print-copies-area {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-enter,
+  .animate-pop,
+  .animate-slide-panel,
+  .motion-panel > summary + *,
+  .motion-shimmer {
+    animation: none !important;
+  }
+
+  .motion-surface:hover,
+  .motion-list-item:hover,
+  .motion-press:active {
+    transform: none !important;
+  }
+}
+
+@media print {
+  body.has-modal {
+    overflow: visible;
+    touch-action: auto;
+  }
+
+  body.has-modal::before {
+    display: none;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0;
+  }
+
+  body.is-printing-copies .print-area:not(.print-copies-area) {
+    display: none !important;
+  }
+
+  body.is-printing-copies .print-copies-area {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
