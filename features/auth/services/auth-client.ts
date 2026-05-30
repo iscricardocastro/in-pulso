@@ -16,3 +16,4 @@ export async function signOut() {
   const { error } = await createSupabaseBrowserClient().auth.signOut();
   if (error) throw new Error(error.message);
 }
+
