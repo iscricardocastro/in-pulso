@@ -48,3 +48,4 @@ coverage/
 *.log
 
 package-lock.json
+.codex

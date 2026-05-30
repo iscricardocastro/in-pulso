@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,19 +17,22 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle className="text-xl">Entrar a Pulso</CardTitle>
-        <CardDescription>Usa tu correo y contrasena de InMexico.</CardDescription>
+    <Card className="w-full max-w-md overflow-hidden rounded-[1.75rem] border-slate-200/90 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07] dark:shadow-black/30">
+      <CardHeader className="p-7 pb-5">
+        <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-teal-700 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-200">
+          Early Access
+        </div>
+        <CardTitle className="text-2xl leading-tight tracking-tight">Entrar a Pulso</CardTitle>
+        <CardDescription className="text-base">Usa tu correo y contraseña de InMexico.</CardDescription>
         {search.get("error") === "missing-profile" ? (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
             Tu usuario existe en Auth, pero no tiene perfil/tenant en `public.users`.
           </p>
         ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-7 pt-0">
         <form
-          className="space-y-4"
+          className="space-y-5"
           onSubmit={async (event) => {
             event.preventDefault();
             setLoading(true);
@@ -43,24 +47,55 @@ export function LoginForm() {
               toast.error(error.message);
               return;
             }
-            toast.success("Sesion iniciada");
+            toast.success("Sesión iniciada");
             router.push("/dashboard");
             router.refresh();
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" required type="email" />
+            <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200" htmlFor="email">
+              Correo
+            </Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                autoComplete="email"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/80 pl-11 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:border-blue-500 focus-visible:ring-blue-500/20 dark:border-white/10 dark:bg-white/[0.06]"
+                id="email"
+                name="email"
+                placeholder="tu@negocio.com"
+                required
+                type="email"
+              />
+            </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Contrasena</Label>
-            <Input id="password" name="password" required type="password" />
+            <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200" htmlFor="password">
+              Contraseña
+            </Label>
+            <div className="relative">
+              <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                autoComplete="current-password"
+                className="h-12 rounded-xl border-slate-200 bg-slate-50/80 pl-11 text-base shadow-inner shadow-slate-950/[0.02] focus-visible:border-blue-500 focus-visible:ring-blue-500/20 dark:border-white/10 dark:bg-white/[0.06]"
+                id="password"
+                name="password"
+                placeholder="••••••••"
+                required
+                type="password"
+              />
+            </div>
           </div>
-          <Button className="w-full" disabled={loading} type="submit">
+          <Button
+            className="h-12 w-full rounded-xl bg-gradient-to-r from-teal-500 via-blue-600 to-pink-500 text-base font-bold text-white shadow-lg shadow-blue-600/25 hover:opacity-95 hover:shadow-xl hover:shadow-blue-600/25"
+            disabled={loading}
+            type="submit"
+          >
             {loading ? "Entrando..." : "Entrar"}
+            {!loading ? <ArrowRight className="h-4 w-4" /> : null}
           </Button>
-          <Link className="block text-center text-sm text-primary hover:underline" href="/reset-password">
-            Recuperar contrasena
+          <Link className="block text-center text-sm font-medium text-blue-700 transition-colors hover:text-pink-600 dark:text-blue-300 dark:hover:text-pink-300" href="/reset-password">
+            Recuperar contraseña
           </Link>
         </form>
       </CardContent>
