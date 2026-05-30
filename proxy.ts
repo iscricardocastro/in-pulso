@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const publicRoutes = ["/login", "/reset-password", "/manifest.webmanifest", "/icon.svg", "/sw.js"];
+const publicRoutes = ["/login", "/pricing", "/reset-password", "/manifest.webmanifest", "/icon.svg", "/sw.js"];
 const publicPrefixes = ["/logo/"];
 const PUBLIC_FILE = /\.(?:avif|css|gif|ico|jpg|jpeg|js|map|png|svg|txt|webmanifest|webp|woff|woff2)$/i;
 

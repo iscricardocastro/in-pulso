@@ -153,6 +153,71 @@ body.has-modal::before {
   }
 }
 
+@keyframes pricing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pricing-gradient-motion {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pricing-line-pulse {
+  0%,
+  100% {
+    transform: scaleX(0.82);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pricing-module-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pricing-module-icon-pulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.08);
+  }
+}
+
+@keyframes pricing-soft-pop {
+  0%,
+  100% {
+    box-shadow: 0 0 0 hsl(236 72% 52% / 0);
+  }
+  50% {
+    box-shadow: 0 16px 42px hsl(236 72% 52% / 0.12);
+  }
+}
+
 .animate-enter {
   animation: enter-soft 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -214,6 +279,115 @@ body.has-modal::before {
   animation: shimmer-soft 1.2s ease-out infinite;
 }
 
+.pricing-float {
+  animation: pricing-float 5.5s ease-in-out infinite;
+}
+
+.pricing-float-delay {
+  animation: pricing-float 6.5s ease-in-out infinite;
+  animation-delay: 0.6s;
+}
+
+.pricing-gradient-motion {
+  background-size: 220% 220%;
+  animation: pricing-gradient-motion 7s ease-in-out infinite;
+}
+
+.pricing-line {
+  transform-origin: center;
+  animation: pricing-line-pulse 2.8s ease-in-out infinite;
+}
+
+.pricing-module-motion {
+  opacity: 0;
+  animation: pricing-module-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pricing-module-motion:hover {
+  transform: translateY(-3px);
+  background: hsl(210 40% 98%);
+}
+
+.dark .pricing-module-motion:hover {
+  background: hsl(210 40% 98% / 0.06);
+}
+
+.pricing-module-icon {
+  animation: pricing-module-icon-pulse 3.4s ease-in-out infinite;
+}
+
+.pricing-delay-0 {
+  animation-delay: 0ms;
+}
+
+.pricing-delay-0 .pricing-module-icon {
+  animation-delay: 0.1s;
+}
+
+.pricing-delay-1 {
+  animation-delay: 90ms;
+}
+
+.pricing-delay-1 .pricing-module-icon {
+  animation-delay: 0.35s;
+}
+
+.pricing-delay-2 {
+  animation-delay: 180ms;
+}
+
+.pricing-delay-2 .pricing-module-icon {
+  animation-delay: 0.6s;
+}
+
+.pricing-delay-3 {
+  animation-delay: 270ms;
+}
+
+.pricing-delay-3 .pricing-module-icon {
+  animation-delay: 0.85s;
+}
+
+.pricing-delay-4 {
+  animation-delay: 360ms;
+}
+
+.pricing-delay-4 .pricing-module-icon {
+  animation-delay: 1.1s;
+}
+
+.pricing-card-motion {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pricing-card-motion:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 72px hsl(222 47% 11% / 0.12);
+}
+
+.pricing-soft-pop {
+  animation: pricing-soft-pop 4.8s ease-in-out infinite;
+}
+
+.pricing-contact-motion {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pricing-contact-motion:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 44px hsl(222 47% 11% / 0.1);
+}
+
 .print-copies-area {
   display: none;
 }
@@ -232,13 +406,24 @@ body.has-modal::before {
   .animate-pop,
   .animate-slide-panel,
   .motion-panel > summary + *,
-  .motion-shimmer {
+  .motion-shimmer,
+  .pricing-float,
+  .pricing-float-delay,
+  .pricing-gradient-motion,
+  .pricing-line,
+  .pricing-module-motion,
+  .pricing-module-icon,
+  .pricing-soft-pop {
     animation: none !important;
+    opacity: 1 !important;
   }
 
   .motion-surface:hover,
   .motion-list-item:hover,
-  .motion-press:active {
+  .motion-press:active,
+  .pricing-card-motion:hover,
+  .pricing-module-motion:hover,
+  .pricing-contact-motion:hover {
     transform: none !important;
   }
 }
