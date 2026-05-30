@@ -33,10 +33,6 @@ export default function LoginPage() {
             priority
           />
           <h1 className="login-intro-title">Entra, entiende qué pasa y sigue creciendo.</h1>
-          <div className="login-intro-cta">
-            <span>Ir al login</span>
-            <ArrowRight className="h-7 w-7" />
-          </div>
           <div className="login-intro-status">
             <LockKeyhole className="h-4 w-4" />
             <span>Preparando acceso seguro</span>
