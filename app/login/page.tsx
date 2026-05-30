@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { BarChart3, Cloud, FileText, Headphones, LockKeyhole, Package, Rocket, ShieldCheck, ShoppingCart, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Cloud, FileText, Headphones, LockKeyhole, Package, Rocket, ShieldCheck, ShoppingCart, Users } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { LoginForm } from "@/features/auth/login-form";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,31 @@ export default function LoginPage() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-white px-4 py-8 text-slate-950 dark:bg-slate-950 dark:text-white sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(20,184,166,0.14),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(236,72,153,0.14),transparent_26%),linear-gradient(180deg,rgba(255,255,255,0.94),rgba(239,246,255,0.72))] dark:bg-[radial-gradient(circle_at_18%_12%,rgba(20,184,166,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(236,72,153,0.18),transparent_26%),linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.84))]" />
-      <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.08fr_0.92fr]">
+      <section aria-hidden="true" className="login-intro-splash">
+        <div className="login-intro-inner">
+          <BrandLogo
+            className="login-intro-logo"
+            imageClassName="h-20 w-20 sm:h-24 sm:w-24"
+            priority
+          />
+          <h1 className="login-intro-title">Entra, entiende qué pasa y sigue creciendo.</h1>
+          <div className="login-intro-cta">
+            <span>Ir al login</span>
+            <ArrowRight className="h-7 w-7" />
+          </div>
+          <div className="login-intro-status">
+            <LockKeyhole className="h-4 w-4" />
+            <span>Preparando acceso seguro</span>
+            <span className="login-intro-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          </div>
+          <div className="login-intro-progress" />
+        </div>
+      </section>
+      <div className="login-main-reveal relative mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.08fr_0.92fr]">
         <section className="animate-enter hidden lg:block">
           <div className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white/88 p-8 shadow-[0_28px_90px_rgba(15,23,42,0.10)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/30">
             <div className="absolute left-8 top-8 h-24 w-24 rounded-full bg-teal-400/10 blur-2xl" />
