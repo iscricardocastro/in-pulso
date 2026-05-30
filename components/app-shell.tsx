@@ -1,6 +1,7 @@
 import { BrandLogo } from "@/components/brand-logo";
 import { DesktopNav, MobileNav } from "@/components/app-nav";
 import { MainSearch } from "@/components/main-search";
+import { PortalFooter } from "@/components/portal-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { requireUserContext } from "@/services/context";
 import { SignOutButton } from "@/features/auth/sign-out-button";
@@ -23,7 +24,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         <DesktopNav />
       </aside>
 
-      <div className="lg:pl-64">
+      <div className="flex min-h-screen flex-col lg:pl-64">
         <header className="sticky top-0 z-10 border-b border-border/70 bg-background/85 shadow-sm shadow-slate-950/[0.025] backdrop-blur-xl transition-shadow duration-200">
           <div className="flex min-h-16 flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between lg:px-8">
             <MainSearch />
@@ -47,7 +48,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <MobileNav />
         </header>
-        <main className="animate-enter mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">{children}</main>
+        <main className="animate-enter mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-8">{children}</main>
+        <PortalFooter />
       </div>
     </div>
   );
