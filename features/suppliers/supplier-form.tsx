@@ -1,17 +1,11 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
-import { useTransition } from "react";
-import { useForm } from "react-hook-form";
-import type { FieldErrors, Resolver } from "react-hook-form";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { supplierSchema, type SupplierFormValues } from "@/features/suppliers/schemas";
-import { upsertSupplier } from "@/services/suppliers";
+import { useSupplierForm } from "@/features/suppliers/hooks/use-supplier-form";
 import type { Supplier } from "@/types/database";
 
 export function SupplierForm({
@@ -23,50 +17,7 @@ export function SupplierForm({
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
-  const [pending, startTransition] = useTransition();
-  const form = useForm<SupplierFormValues>({
-    resolver: zodResolver(supplierSchema) as Resolver<SupplierFormValues>,
-    defaultValues: supplier
-      ? {
-          id: supplier.id,
-          name: supplier.name,
-          contact: supplier.contact || "",
-          phone: supplier.phone || "",
-          email: supplier.email || "",
-          country: supplier.country || "",
-          average_delivery_days: supplier.average_delivery_days,
-          payment_terms: supplier.payment_terms || "",
-          notes: supplier.notes || "",
-        }
-      : {
-          name: "",
-          contact: "",
-          phone: "",
-          email: "",
-          country: "",
-          average_delivery_days: 0,
-          payment_terms: "",
-          notes: "",
-        },
-  });
-
-  function submit(values: SupplierFormValues) {
-    startTransition(async () => {
-      try {
-        await upsertSupplier(values);
-        toast.success(supplier ? "Proveedor actualizado" : "Proveedor creado");
-        form.reset();
-        onSaved?.();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No se pudo guardar");
-      }
-    });
-  }
-
-  function invalid(errors: FieldErrors<SupplierFormValues>) {
-    const firstError = Object.values(errors)[0]?.message;
-    toast.error(typeof firstError === "string" ? firstError : "Revisa los campos marcados");
-  }
+  const { form, pending, submit, invalid } = useSupplierForm({ supplier, onSaved });
 
   return (
     <form className="grid gap-4 md:grid-cols-2" noValidate onSubmit={form.handleSubmit(submit, invalid)}>

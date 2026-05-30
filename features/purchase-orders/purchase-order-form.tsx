@@ -1,21 +1,15 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { addDays, format } from "date-fns";
 import { Plus, Save, Trash2 } from "lucide-react";
-import { useEffect, useTransition } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import type { FieldErrors, Resolver } from "react-hook-form";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { purchaseOrderSchema, type PurchaseOrderFormValues } from "@/features/purchase-orders/schemas";
+import { usePurchaseOrderForm } from "@/features/purchase-orders/hooks/use-purchase-order-form";
+import type { PurchaseOrderFormValues } from "@/features/purchase-orders/schemas";
 import { money } from "@/lib/utils";
-import { createPurchaseOrder } from "@/services/purchase-orders";
 import type { Product, Supplier } from "@/types/database";
 
 export function PurchaseOrderForm({
@@ -31,55 +25,8 @@ export function PurchaseOrderForm({
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
-  const [pending, startTransition] = useTransition();
-  const emptyValues: PurchaseOrderFormValues = {
-    supplier_id: "",
-    status: "draft",
-    expected_arrival: "",
-    advance_percent: 0,
-    advance_paid: 0,
-    notes: "",
-    expected_items: [{ product_id: "", quantity_requested: 1, unit_cost: 0 }],
-  };
-  const form = useForm<PurchaseOrderFormValues>({
-    resolver: zodResolver(purchaseOrderSchema) as Resolver<PurchaseOrderFormValues>,
-    defaultValues: initialValues ?? emptyValues,
-  });
-  const items = useFieldArray({ control: form.control, name: "expected_items" });
-  const supplierId = useWatch({ control: form.control, name: "supplier_id" });
-  const watchedItems = useWatch({ control: form.control, name: "expected_items" });
-  const estimatedTotal = (watchedItems ?? []).reduce(
-    (total, item) => total + Number(item.quantity_requested || 0) * Number(item.unit_cost || 0),
-    0,
-  );
-
-  useEffect(() => {
-    const supplier = suppliers.find((entry) => entry.id === supplierId);
-    if (!supplier) {
-      form.setValue("expected_arrival", "", { shouldDirty: true, shouldValidate: true });
-      return;
-    }
-    const nextArrival = format(addDays(new Date(), supplier.average_delivery_days), "yyyy-MM-dd");
-    form.setValue("expected_arrival", nextArrival, { shouldDirty: true, shouldValidate: true });
-  }, [form, supplierId, suppliers]);
-
-  function submit(values: PurchaseOrderFormValues) {
-    startTransition(async () => {
-      try {
-        await createPurchaseOrder(values);
-        toast.success("Pedido creado");
-        form.reset(emptyValues);
-        onSaved?.();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No se pudo crear pedido");
-      }
-    });
-  }
-
-  function invalid(errors: FieldErrors<PurchaseOrderFormValues>) {
-    const firstError = Object.values(errors)[0]?.message;
-    toast.error(typeof firstError === "string" ? firstError : "Revisa los campos marcados");
-  }
+  const { form, items, watchedItems, estimatedTotal, pending, addItem, removeItem, selectProduct, submit, invalid } =
+    usePurchaseOrderForm({ products, suppliers, initialValues, onSaved });
 
   return (
     <form className="space-y-4" noValidate onSubmit={form.handleSubmit(submit, invalid)}>
@@ -129,7 +76,7 @@ export function PurchaseOrderForm({
             size="sm"
             type="button"
             variant="outline"
-            onClick={() => items.append({ product_id: "", quantity_requested: 1, unit_cost: 0 })}
+            onClick={addItem}
           >
             <Plus className="h-4 w-4" />
             Agregar
@@ -143,13 +90,7 @@ export function PurchaseOrderForm({
             <ProductField
               products={products}
               value={watchedItems?.[index]?.product_id || ""}
-              onChange={(productId) => {
-                form.setValue(`expected_items.${index}.product_id`, productId, { shouldDirty: true, shouldValidate: true });
-                form.setValue(`expected_items.${index}.unit_cost`, products.find((product) => product.id === productId)?.cost ?? 0, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-              }}
+              onChange={(productId) => selectProduct(index, productId)}
             />
             <div className="space-y-2">
               <Label>Cantidad</Label>
@@ -159,7 +100,7 @@ export function PurchaseOrderForm({
               <Label>Costo unitario</Label>
               <Input min={0} step="0.01" type="number" {...form.register(`expected_items.${index}.unit_cost`)} />
             </div>
-            <Button size="icon" type="button" variant="ghost" onClick={() => items.remove(index)}>
+            <Button size="icon" type="button" variant="ghost" onClick={() => removeItem(index)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>

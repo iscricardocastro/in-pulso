@@ -2,7 +2,7 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import { Edit, Plus, Tags, Truck, X } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,63 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
   );
   const formOpen = showForm || Boolean(editing) || Boolean(editingSupplier);
 
+  const editSupplier = useCallback((supplier: Supplier) => {
+    setEditing(null);
+    setEditingSupplier(supplier);
+    setShowForm(true);
+    revealForm();
+  }, [revealForm]);
+
+  const deleteSupplierWithToast = useCallback(async (supplier: Supplier) => {
+    try {
+      await deleteSupplier(supplier.id);
+      toast.success("Proveedor eliminado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
+      throw error;
+    }
+  }, []);
+
+  const editCatalogItem = useCallback((item: CatalogItem) => {
+    setEditingSupplier(null);
+    setEditing(item);
+    setSection(item.kind);
+    setSelectedBrandId(item.parent_id || "");
+    setName(item.name);
+    setShowForm(true);
+    revealForm();
+  }, [revealForm]);
+
+  const deleteCatalogItemWithToast = useCallback(async (item: CatalogItem) => {
+    try {
+      await deleteCatalogItem(item.id);
+      toast.success("Catalogo eliminado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
+      throw error;
+    }
+  }, []);
+
+  function toggleForm() {
+    if (formOpen) {
+      closeForm();
+      return;
+    }
+    setShowForm(true);
+    revealForm();
+  }
+
+  function changeSection(value: CatalogSection) {
+    closeForm();
+    setSection(value);
+    setSelectedBrandId("");
+  }
+
+  function changeSelectedBrand(value: string) {
+    closeForm();
+    setSelectedBrandId(value);
+  }
+
   const supplierColumns = useMemo<ColumnDef<Supplier>[]>(
     () => [
       {
@@ -93,12 +150,7 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
               size="icon"
               type="button"
               variant="ghost"
-              onClick={() => {
-                setEditing(null);
-                setEditingSupplier(row.original);
-                setShowForm(true);
-                revealForm();
-              }}
+              onClick={() => editSupplier(row.original)}
             >
               <Edit className="h-4 w-4" />
             </Button>
@@ -106,21 +158,13 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
               disabled={pending}
               title="Eliminar proveedor"
               description={`Seguro que quieres eliminar "${row.original.name}"? Esta accion no se puede deshacer.`}
-              onConfirm={async () => {
-                try {
-                  await deleteSupplier(row.original.id);
-                  toast.success("Proveedor eliminado");
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
-                  throw error;
-                }
-              }}
+              onConfirm={() => deleteSupplierWithToast(row.original)}
             />
           </div>
         ),
       },
     ],
-    [pending, revealForm],
+    [deleteSupplierWithToast, editSupplier, pending],
   );
   const itemColumns = useMemo<ColumnDef<CatalogItem>[]>(
     () => [
@@ -145,15 +189,7 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
               size="icon"
               type="button"
               variant="ghost"
-              onClick={() => {
-                setEditingSupplier(null);
-                setEditing(row.original);
-                setSection(row.original.kind);
-                setSelectedBrandId(row.original.parent_id || "");
-                setName(row.original.name);
-                setShowForm(true);
-                revealForm();
-              }}
+              onClick={() => editCatalogItem(row.original)}
             >
               <Edit className="h-4 w-4" />
             </Button>
@@ -161,21 +197,13 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
               disabled={pending}
               title="Eliminar valor"
               description={`Seguro que quieres eliminar "${row.original.name}"? Esta accion no se puede deshacer.`}
-              onConfirm={async () => {
-                try {
-                  await deleteCatalogItem(row.original.id);
-                  toast.success("Catalogo eliminado");
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
-                  throw error;
-                }
-              }}
+              onConfirm={() => deleteCatalogItemWithToast(row.original)}
             />
           </div>
         ),
       },
     ],
-    [pending, revealForm],
+    [deleteCatalogItemWithToast, editCatalogItem, pending],
   );
 
   function save() {
@@ -211,14 +239,7 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
         <Button
           type="button"
           variant={formOpen ? "secondary" : "default"}
-          onClick={() => {
-            if (formOpen) {
-              closeForm();
-              return;
-            }
-            setShowForm(true);
-            revealForm();
-          }}
+          onClick={toggleForm}
         >
           {formOpen ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
           {formOpen ? "Cerrar" : isSupplierSection ? "Nuevo proveedor" : "Nuevo valor"}
@@ -231,11 +252,7 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
             <Label>Catalogo</Label>
             <Select
               value={section}
-              onChange={(event) => {
-                closeForm();
-                setSection(event.target.value as CatalogSection);
-                setSelectedBrandId("");
-              }}
+              onChange={(event) => changeSection(event.target.value as CatalogSection)}
             >
               {catalogSections.map((entry) => (
                 <option key={entry} value={entry}>
@@ -263,10 +280,7 @@ export function CatalogsView({ items, suppliers }: { items: CatalogItem[]; suppl
               <Label>Marca</Label>
               <Select
                 value={selectedBrandId}
-                onChange={(event) => {
-                  closeForm();
-                  setSelectedBrandId(event.target.value);
-                }}
+                onChange={(event) => changeSelectedBrand(event.target.value)}
               >
                 <option value="">Selecciona marca</option>
                 {brands.map((brand) => (

@@ -1,17 +1,15 @@
 "use client";
 
 import { Check, CheckCircle2, ScanLine, Zap } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { Textarea } from "@/components/ui/textarea";
+import { useReceiveOrder } from "@/features/purchase-orders/hooks/use-receive-order";
+import { getItemReceptionState } from "@/features/purchase-orders/utils/reception";
 import { cn } from "@/lib/utils";
-import { receivePurchaseOrder } from "@/services/purchase-orders";
-import type { Product, PurchaseOrder, PurchaseOrderItem } from "@/types/database";
+import type { Product, PurchaseOrder } from "@/types/database";
 
 type OrderStage = "all" | "planning" | "payment" | "transit" | "received" | "canceled";
 
@@ -24,83 +22,28 @@ export function ReceiveOrderForm({
   products: Product[];
   onStageChange?: (stage: OrderStage) => void;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [receptionNote, setReceptionNote] = useState("");
-  const [confirmReceiveAllOpen, setConfirmReceiveAllOpen] = useState(false);
-  const [confirmCloseReceptionOpen, setConfirmCloseReceptionOpen] = useState(false);
-  const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
-  const productByCode = useMemo(() => new Map(products.map((product) => [product.internal_code.toLowerCase(), product])), [products]);
-  const receivedById = new Map(order.received_items.map((item) => [item.product_id, item.received_quantity ?? 0]));
-  const [items, setItems] = useState<PurchaseOrderItem[]>(
-    order.expected_items.map((item) => ({
-      ...item,
-      received_quantity: receivedById.get(item.product_id) ?? item.received_quantity ?? 0,
-    })),
-  );
-
-  const summary = useMemo(
-    () =>
-      items.reduce(
-        (acc, item) => {
-          const received = item.received_quantity ?? 0;
-          acc.requested += item.quantity_requested;
-          acc.receivedQuantity += Math.min(received, item.quantity_requested);
-          if (received >= item.quantity_requested) acc.received += 1;
-          if (received < item.quantity_requested) acc.missing += item.quantity_requested - received;
-          if (received > item.quantity_requested) acc.extra += received - item.quantity_requested;
-          return acc;
-        },
-        { received: 0, receivedQuantity: 0, requested: 0, missing: 0, extra: 0 },
-      ),
-    [items],
-  );
-  const progress = summary.requested === 0 ? 0 : Math.min(100, Math.round((summary.receivedQuantity / summary.requested) * 100));
-  const closed = order.status === "received" || order.status === "canceled";
-  const closedIncomplete = closed && summary.missing > 0;
-
-  function updateReceived(index: number, received_quantity: number) {
-    setItems((current) =>
-      current.map((entry, entryIndex) =>
-        entryIndex === index ? { ...entry, received_quantity: Math.max(0, received_quantity) } : entry,
-      ),
-    );
-  }
-
-  function save(nextItems: PurchaseOrderItem[], message: string, options?: { closeOrder?: boolean; note?: string }) {
-    startTransition(async () => {
-      try {
-        await receivePurchaseOrder({
-          order_id: order.id,
-          received_items: nextItems,
-          close_order: options?.closeOrder,
-          reception_note: options?.note,
-        });
-        const allReceived = nextItems.every((item) => (item.received_quantity ?? 0) >= item.quantity_requested);
-        const nextStage = allReceived || options?.closeOrder ? "received" : "transit";
-        onStageChange?.(nextStage);
-        toast.success(`${message}. Pedido movido a ${nextStage === "received" ? "Recibidos" : "Llegada"}.`);
-        router.refresh();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No se pudo recibir");
-      }
-    });
-  }
-
-  function receiveAll() {
-    const nextItems = items.map((item) => ({
-      ...item,
-      received_quantity: item.quantity_requested,
-    }));
-    setItems(nextItems);
-    setConfirmReceiveAllOpen(false);
-    save(nextItems, "Orden recibida completa");
-  }
-
-  function closeReception() {
-    setConfirmCloseReceptionOpen(false);
-    save(items, "Recepcion cerrada");
-  }
+  const reception = useReceiveOrder({ order, products, onStageChange });
+  const {
+    closed,
+    closedIncomplete,
+    confirmCloseReceptionOpen,
+    confirmReceiveAllOpen,
+    items,
+    pending,
+    productById,
+    progress,
+    receptionNote,
+    summary,
+    closeIncomplete,
+    closeReception,
+    handleScanSubmit,
+    receiveAll,
+    saveProgressOrOpenClose,
+    setConfirmCloseReceptionOpen,
+    setConfirmReceiveAllOpen,
+    setReceptionNote,
+    updateReceived,
+  } = reception;
 
   return (
     <div className="space-y-4">
@@ -163,18 +106,7 @@ export function ReceiveOrderForm({
       <div className="flex flex-col gap-2 sm:flex-row">
         <form
           className="relative flex-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const input = event.currentTarget.elements.namedItem("scan") as HTMLInputElement;
-            const product = productByCode.get(input.value.trim().toLowerCase());
-            const index = items.findIndex((item) => item.product_id === product?.id);
-            if (index === -1) {
-              toast.error("Codigo no pertenece a esta orden");
-              return;
-            }
-            updateReceived(index, (items[index].received_quantity ?? 0) + 1);
-            input.value = "";
-          }}
+          onSubmit={handleScanSubmit}
         >
           <ScanLine className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input className="pl-10" disabled={closed} name="scan" placeholder="Escanear QR/codigo barras" />
@@ -215,7 +147,7 @@ export function ReceiveOrderForm({
         {items.map((item, index) => {
           const product = productById.get(item.product_id);
           const received = item.received_quantity ?? 0;
-          const state = received === item.quantity_requested ? "Completo" : received > item.quantity_requested ? "Excedente" : "Faltante";
+          const state = getItemReceptionState(item);
           return (
             <div
               key={`${item.product_id}-${index}`}
@@ -252,7 +184,7 @@ export function ReceiveOrderForm({
         disabled={pending || closed}
         type="button"
         variant={summary.missing === 0 ? "default" : "outline"}
-        onClick={() => (summary.missing === 0 ? setConfirmCloseReceptionOpen(true) : save(items, "Recepcion actualizada"))}
+        onClick={saveProgressOrOpenClose}
       >
         <Check className="h-4 w-4" />
         {pending ? "Guardando..." : summary.missing === 0 ? "Guardar y cerrar recepcion" : "Guardar avance"}
@@ -283,7 +215,7 @@ export function ReceiveOrderForm({
           disabled={pending || receptionNote.trim().length === 0}
           type="button"
           variant="secondary"
-          onClick={() => save(items, "Pedido cerrado incompleto", { closeOrder: true, note: receptionNote })}
+          onClick={closeIncomplete}
         >
           <CheckCircle2 className="h-4 w-4" />
           Cerrar incompleto

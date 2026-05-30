@@ -1,19 +1,13 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
-import { useTransition } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import type { FieldErrors, Resolver } from "react-hook-form";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { movementSchema, type MovementFormValues } from "@/features/movements/schemas";
-import { recordMovement } from "@/services/movements";
+import { useMovementForm } from "@/features/movements/hooks/use-movement-form";
 import type { Product } from "@/types/database";
 
 export function MovementForm({
@@ -25,35 +19,7 @@ export function MovementForm({
   onSaved?: () => void;
   onCancel?: () => void;
 }) {
-  const [pending, startTransition] = useTransition();
-  const form = useForm<MovementFormValues>({
-    resolver: zodResolver(movementSchema) as Resolver<MovementFormValues>,
-    defaultValues: {
-      product_id: products[0]?.id || "",
-      type: "entry",
-      quantity: 1,
-      comment: "",
-    },
-  });
-  const productId = useWatch({ control: form.control, name: "product_id" });
-
-  function submit(values: MovementFormValues) {
-    startTransition(async () => {
-      try {
-        await recordMovement(values);
-        toast.success("Movimiento registrado");
-        form.reset({ ...values, quantity: 1, comment: "" });
-        onSaved?.();
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No se pudo registrar");
-      }
-    });
-  }
-
-  function invalid(errors: FieldErrors<MovementFormValues>) {
-    const firstError = Object.values(errors)[0]?.message;
-    toast.error(typeof firstError === "string" ? firstError : "Revisa los campos marcados");
-  }
+  const { form, pending, productId, setProductId, submit, invalid } = useMovementForm({ products, onSaved });
 
   return (
     <form className="grid gap-4 md:grid-cols-4" noValidate onSubmit={form.handleSubmit(submit, invalid)}>
@@ -62,7 +28,7 @@ export function MovementForm({
         <ProductField
           products={products}
           value={productId || ""}
-          onChange={(value) => form.setValue("product_id", value, { shouldDirty: true, shouldValidate: true })}
+          onChange={setProductId}
         />
         {form.formState.errors.product_id?.message ? (
           <p className="text-sm text-destructive">{form.formState.errors.product_id.message}</p>

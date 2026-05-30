@@ -1,12 +1,11 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useSignOut } from "@/features/auth/hooks/use-sign-out";
 
 export function SignOutButton() {
-  const router = useRouter();
+  const { handleClick } = useSignOut();
 
   return (
     <Button
@@ -14,11 +13,7 @@ export function SignOutButton() {
       size="icon"
       type="button"
       variant="ghost"
-      onClick={async () => {
-        await createSupabaseBrowserClient().auth.signOut();
-        router.push("/login");
-        router.refresh();
-      }}
+      onClick={handleClick}
     >
       <LogOut className="h-4 w-4" />
     </Button>

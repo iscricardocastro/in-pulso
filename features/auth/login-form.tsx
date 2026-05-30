@@ -1,20 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useLoginForm } from "@/features/auth/hooks/use-login-form";
 
 export function LoginForm() {
-  const router = useRouter();
   const search = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const { loading, handleSubmit } = useLoginForm();
 
   return (
     <Card className="w-full max-w-md overflow-hidden rounded-[1.75rem] border-slate-200/90 bg-white/92 shadow-[0_24px_80px_rgba(15,23,42,0.13)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.07] dark:shadow-black/30">
@@ -33,24 +30,7 @@ export function LoginForm() {
       <CardContent className="p-7 pt-0">
         <form
           className="space-y-5"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setLoading(true);
-            const form = new FormData(event.currentTarget);
-            const supabase = createSupabaseBrowserClient();
-            const { error } = await supabase.auth.signInWithPassword({
-              email: String(form.get("email")),
-              password: String(form.get("password")),
-            });
-            setLoading(false);
-            if (error) {
-              toast.error(error.message);
-              return;
-            }
-            toast.success("Sesión iniciada");
-            router.push("/dashboard");
-            router.refresh();
-          }}
+          onSubmit={handleSubmit}
         >
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200" htmlFor="email">

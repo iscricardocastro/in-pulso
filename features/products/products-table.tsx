@@ -3,7 +3,7 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { Edit, PackagePlus, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,29 @@ export function ProductsTable({
   const activeStockFilter = stockFilter === "low" || stockFilter === "out" ? stockFilter : null;
   const stockFilterLabel = activeStockFilter === "low" ? "Stock bajo" : activeStockFilter === "out" ? "Agotados" : null;
   const emptyStockTitle = activeStockFilter === "low" ? "Sin productos con stock bajo" : "Sin productos agotados";
+  const handleEditProduct = useCallback((product: Product) => {
+    setShowCreate(false);
+    setEditing(product);
+    revealForm();
+  }, [revealForm]);
+  const handleDeleteProduct = useCallback(async (product: Product) => {
+    try {
+      await deleteProduct(product.id);
+      toast.success("Producto eliminado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
+      throw error;
+    }
+  }, []);
+  const handleToggleForm = useCallback(() => {
+    if (formOpen) {
+      setEditing(null);
+      setShowCreate(false);
+      return;
+    }
+    setShowCreate(true);
+    revealForm();
+  }, [formOpen, revealForm]);
   const filteredProducts = useMemo(() => {
     if (activeStockFilter === "low") {
       return products.filter((product) => product.minimum_stock > 0 && product.current_stock <= product.minimum_stock);
@@ -109,32 +132,20 @@ export function ProductsTable({
               size="icon"
               type="button"
               variant="ghost"
-              onClick={() => {
-                setShowCreate(false);
-                setEditing(row.original);
-                revealForm();
-              }}
+              onClick={() => handleEditProduct(row.original)}
             >
               <Edit className="h-4 w-4" />
             </Button>
             <ConfirmDeleteButton
               title="Eliminar producto"
               description={`Seguro que quieres eliminar "${row.original.name}"? Esta accion no se puede deshacer.`}
-              onConfirm={async () => {
-                try {
-                  await deleteProduct(row.original.id);
-                  toast.success("Producto eliminado");
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "No se pudo eliminar");
-                  throw error;
-                }
-              }}
+              onConfirm={() => handleDeleteProduct(row.original)}
             />
           </div>
         ),
       },
     ],
-    [revealForm],
+    [handleDeleteProduct, handleEditProduct],
   );
 
   return (
@@ -166,15 +177,7 @@ export function ProductsTable({
           <Button
             type="button"
             variant={formOpen ? "secondary" : "default"}
-            onClick={() => {
-              if (formOpen) {
-                setEditing(null);
-                setShowCreate(false);
-                return;
-              }
-              setShowCreate(true);
-              revealForm();
-            }}
+            onClick={handleToggleForm}
           >
             {formOpen ? <X className="h-4 w-4" /> : <PackagePlus className="h-4 w-4" />}
             {formOpen ? "Cerrar" : "Nuevo producto"}
