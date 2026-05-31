@@ -2,11 +2,14 @@
 
 import type { ComponentProps } from "react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 type ModalOverlayProps = ComponentProps<"div">;
 
 export function ModalOverlay({ className, children, role = "dialog", ...props }: ModalOverlayProps) {
+  const portalTarget = typeof document === "undefined" ? null : document.body;
+
   useEffect(() => {
     const body = document.body;
     const currentCount = Number(body.dataset.modalLockCount || 0);
@@ -25,7 +28,9 @@ export function ModalOverlay({ className, children, role = "dialog", ...props }:
     };
   }, []);
 
-  return (
+  if (!portalTarget) return null;
+
+  return createPortal(
     <div
       className={cn("animate-enter fixed inset-0 z-50 grid place-items-center p-4", className)}
       role={role}
@@ -33,6 +38,7 @@ export function ModalOverlay({ className, children, role = "dialog", ...props }:
       {...props}
     >
       {children}
-    </div>
+    </div>,
+    portalTarget,
   );
 }

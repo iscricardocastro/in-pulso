@@ -44,6 +44,21 @@ export type Supplier = {
   updated_at: string;
 };
 
+export type Customer = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+  state: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CatalogKind = "brand" | "model" | "category" | "variant" | "payment_method";
 
 export type CatalogItem = {
@@ -68,6 +83,133 @@ export type InventoryMovement = {
   updated_at: string;
   products?: Pick<Product, "name" | "internal_code" | "model" | "model_item"> | null;
   users?: { full_name: string | null; email: string } | null;
+};
+
+export type DiscountType = "amount" | "percent";
+export type SaleStatus = "completed" | "with_debt" | "partially_refunded" | "refunded" | "canceled";
+
+export type SaleItem = {
+  id: string;
+  tenant_id: string;
+  sale_id: string;
+  product_id: string;
+  product_name: string;
+  product_code: string;
+  quantity: number;
+  suggested_price: number;
+  unit_price: number;
+  discount_type: DiscountType | null;
+  discount_value: number;
+  discount_total: number;
+  line_total: number;
+  refunded_quantity: number;
+  created_at: string;
+  updated_at: string;
+  products?: Pick<Product, "id" | "name" | "internal_code" | "current_stock"> | null;
+};
+
+export type SalePayment = {
+  id: string;
+  tenant_id: string;
+  sale_id: string;
+  payment_method_id: string;
+  payment_method_name: string;
+  amount_paid: number;
+  amount_received: number;
+  change_due: number;
+  comments: string | null;
+  created_at: string;
+};
+
+export type SaleRefundItem = {
+  id: string;
+  tenant_id: string;
+  refund_id: string;
+  sale_item_id: string;
+  product_id: string;
+  quantity: number;
+  amount: number;
+  created_at: string;
+};
+
+export type SaleRefund = {
+  id: string;
+  tenant_id: string;
+  sale_id: string;
+  user_id: string;
+  payment_method_id: string;
+  payment_method_name: string;
+  amount: number;
+  affect_inventory: boolean;
+  comments: string | null;
+  created_at: string;
+  items?: SaleRefundItem[];
+};
+
+export type SaleEvent = {
+  id: string;
+  tenant_id: string;
+  sale_id: string;
+  user_id: string;
+  type: "created" | "updated" | "canceled" | "refunded";
+  note: string | null;
+  metadata: Json;
+  created_at: string;
+  users?: { full_name: string | null; email: string } | null;
+};
+
+export type Sale = {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  customer_id: string | null;
+  sale_number: string;
+  status: SaleStatus;
+  subtotal: number;
+  discount_type: DiscountType | null;
+  discount_value: number;
+  discount_total: number;
+  total: number;
+  paid_total: number;
+  balance_due: number;
+  comments: string | null;
+  created_at: string;
+  updated_at: string;
+  customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | null;
+  items?: SaleItem[];
+  payments?: SalePayment[];
+  refunds?: SaleRefund[];
+  events?: SaleEvent[];
+  debt?: CustomerDebt | null;
+};
+
+export type CustomerDebt = {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  sale_id: string;
+  original_amount: number;
+  paid_amount: number;
+  balance: number;
+  status: "open" | "paid" | "canceled";
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | null;
+  sales?: Pick<Sale, "id" | "sale_number" | "total" | "paid_total" | "balance_due" | "created_at" | "status"> | null;
+  payments?: DebtPayment[];
+};
+
+export type DebtPayment = {
+  id: string;
+  tenant_id: string;
+  debt_id: string;
+  user_id: string;
+  payment_method_id: string;
+  payment_method_name: string;
+  amount: number;
+  comments: string | null;
+  created_at: string;
 };
 
 export type PurchaseOrderItem = {

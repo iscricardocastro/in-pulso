@@ -3,13 +3,16 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Boxes, ClipboardList, Gauge, History, QrCode, Tags, Upload } from "lucide-react";
+import { Boxes, ClipboardList, Gauge, HandCoins, History, QrCode, ShoppingCart, Tags, Upload, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
+  { href: "/sales" as Route, label: "Ventas", icon: ShoppingCart },
+  { href: "/debtors" as Route, label: "Deudores", icon: HandCoins },
   { href: "/products", label: "Productos", icon: Boxes },
+  { href: "/customers" as Route, label: "Clientes", icon: UsersRound },
   { href: "/catalogs", label: "Catalogos", icon: Tags },
   { href: "/purchase-orders", label: "Pedidos", icon: ClipboardList },
   { href: "/movements", label: "Movimientos", icon: History },

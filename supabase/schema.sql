@@ -39,6 +39,22 @@ create table public.suppliers (
   unique (tenant_id, name)
 );
 
+create table public.customers (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  name text not null,
+  address text,
+  postal_code text,
+  city text,
+  country text,
+  state text,
+  phone text,
+  email text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (tenant_id, name)
+);
+
 create table public.products (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -149,6 +165,7 @@ $$;
 create trigger tenants_updated_at before update on public.tenants for each row execute function public.set_updated_at();
 create trigger users_updated_at before update on public.users for each row execute function public.set_updated_at();
 create trigger suppliers_updated_at before update on public.suppliers for each row execute function public.set_updated_at();
+create trigger customers_updated_at before update on public.customers for each row execute function public.set_updated_at();
 create trigger products_updated_at before update on public.products for each row execute function public.set_updated_at();
 create trigger catalog_items_updated_at before update on public.catalog_items for each row execute function public.set_updated_at();
 create trigger inventory_movements_updated_at before update on public.inventory_movements for each row execute function public.set_updated_at();
@@ -263,6 +280,7 @@ $$;
 alter table public.tenants enable row level security;
 alter table public.users enable row level security;
 alter table public.suppliers enable row level security;
+alter table public.customers enable row level security;
 alter table public.products enable row level security;
 alter table public.catalog_items enable row level security;
 alter table public.inventory_movements enable row level security;
@@ -278,6 +296,10 @@ for all using (tenant_id = public.current_tenant_id())
 with check (tenant_id = public.current_tenant_id());
 
 create policy "suppliers isolated by tenant" on public.suppliers
+for all using (tenant_id = public.current_tenant_id())
+with check (tenant_id = public.current_tenant_id());
+
+create policy "customers isolated by tenant" on public.customers
 for all using (tenant_id = public.current_tenant_id())
 with check (tenant_id = public.current_tenant_id());
 
@@ -309,6 +331,8 @@ create index products_tenant_stock_idx on public.products (tenant_id, current_st
 create index products_primary_supplier_idx on public.products (tenant_id, primary_supplier_id);
 create index products_catalog_ids_idx on public.products (tenant_id, brand_id, model_id, category_id, variant_id);
 create index suppliers_tenant_name_idx on public.suppliers (tenant_id, name);
+create index customers_tenant_name_idx on public.customers (tenant_id, name);
+create index customers_tenant_postal_code_idx on public.customers (tenant_id, postal_code);
 create index catalog_items_tenant_kind_name_idx on public.catalog_items (tenant_id, kind, name);
 create unique index catalog_items_global_unique_idx on public.catalog_items (tenant_id, kind, name) where parent_id is null;
 create unique index catalog_items_child_unique_idx on public.catalog_items (tenant_id, kind, parent_id, name) where parent_id is not null;
