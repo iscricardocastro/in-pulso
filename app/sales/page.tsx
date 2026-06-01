@@ -5,7 +5,12 @@ import { requireUserContext } from "@/services/context";
 import { getCustomers } from "@/services/customers";
 import { getSales } from "@/services/sales";
 
-export default async function SalesPage() {
+type SalesPageProps = {
+  searchParams: Promise<{ detail?: string }>;
+};
+
+export default async function SalesPage({ searchParams }: SalesPageProps) {
+  const { detail } = await searchParams;
   const { supabase, profile } = await requireUserContext();
   const [catalogs, customers, sales, tenantResult] = await Promise.all([
     getCatalogItems(),
@@ -21,6 +26,7 @@ export default async function SalesPage() {
       <SalesView
         catalogs={catalogs}
         customers={customers}
+        initialDetailSaleNumber={detail}
         sales={sales}
         receiptContext={{
           company: tenantResult.data,

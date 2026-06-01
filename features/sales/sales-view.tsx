@@ -64,17 +64,19 @@ function getSavedReceiptPrintSize(): ReceiptPrintSize {
 export function SalesView({
   catalogs,
   customers,
+  initialDetailSaleNumber,
   receiptContext,
   sales,
 }: {
   catalogs: CatalogItem[];
   customers: Customer[];
+  initialDetailSaleNumber?: string;
   receiptContext: ReceiptContext;
   sales: Sale[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("history");
-  const [activeSaleNumber, setActiveSaleNumber] = useState("");
+  const [mode, setMode] = useState<Mode>(initialDetailSaleNumber ? "detail" : "history");
+  const [activeSaleNumber, setActiveSaleNumber] = useState(initialDetailSaleNumber ?? "");
   const [receiptPrintSize, setReceiptPrintSize] = useState<ReceiptPrintSize>(getSavedReceiptPrintSize);
   const [receiptPrintJob, setReceiptPrintJob] = useState<{ closeAfterPrint: boolean; sale: Sale; size: ReceiptPrintSize } | null>(null);
   const categories = catalogs.filter((item) => item.kind === "category");
@@ -83,6 +85,7 @@ export function SalesView({
   const closePanel = useCallback(() => {
     setMode("history");
     setActiveSaleNumber("");
+    router.replace("/sales");
     router.refresh();
   }, [router]);
 
