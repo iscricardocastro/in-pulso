@@ -128,13 +128,15 @@ export function SalesView({
               Cerrar
             </Button>
           ) : null}
-          <Button type="button" onClick={() => {
-            setActiveSaleNumber("");
-            setMode("sale");
-          }}>
-            <Receipt className="h-4 w-4" />
-            Nueva venta
-          </Button>
+          {mode === "history" ? (
+            <Button type="button" onClick={() => {
+              setActiveSaleNumber("");
+              setMode("sale");
+            }}>
+              <Receipt className="h-4 w-4" />
+              Nueva venta
+            </Button>
+          ) : null}
         </div>
       </div>
 
