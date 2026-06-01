@@ -430,13 +430,14 @@ function SalePanel({
         }
         return current.map((item) => item.key === existing.key ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      const price = Number(product.suggested_price ?? product.sale_price ?? 0);
+      const suggestedPrice = Number(product.suggested_price ?? 0);
+      const salePrice = Number(product.sale_price ?? product.suggested_price ?? 0);
       const next = {
         key: crypto.randomUUID(),
         product,
         quantity: 1,
-        suggested_price: price,
-        unit_price: price,
+        suggested_price: suggestedPrice,
+        unit_price: salePrice,
         discount: { type: null, value: 0 },
       };
       setActiveKey(next.key);
@@ -999,7 +1000,7 @@ function ProductSearchBox({ categoryId, onSelect }: { categoryId: string; onSele
                   <span className="block truncate font-medium">{product.internal_code} · {product.name}</span>
                   <span className="block text-xs text-muted-foreground">Stock {product.current_stock}</span>
                 </span>
-                <span className="shrink-0 font-medium">{money(Number(product.suggested_price ?? product.sale_price ?? 0))}</span>
+                <span className="shrink-0 font-medium">{money(Number(product.sale_price ?? product.suggested_price ?? 0))}</span>
               </button>
             ))}
           </div>
