@@ -206,9 +206,13 @@ begin
     on conflict (tenant_id, product_id, status)
     do update set message = excluded.message, updated_at = now();
   else
-    update public.stock_alerts
-    set status = 'resolved', updated_at = now()
+    delete from public.stock_alerts
     where tenant_id = new.tenant_id and product_id = new.id and status = 'open';
+
+    insert into public.stock_alerts (tenant_id, product_id, status, message)
+    values (new.tenant_id, new.id, 'resolved', 'Stock normalizado')
+    on conflict (tenant_id, product_id, status)
+    do update set message = excluded.message, updated_at = now();
   end if;
   return new;
 end;

@@ -49,3 +49,5 @@ coverage/
 
 package-lock.json
 .codex
+.agents
+.claude

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
-  { href: "/sales" as Route, label: "Ventas", icon: ShoppingCart },
+  { href: "/sales" as Route, label: "Sales", icon: ShoppingCart },
   { href: "/debtors" as Route, label: "Deudores", icon: HandCoins },
   { href: "/products", label: "Productos", icon: Boxes },
   { href: "/customers" as Route, label: "Clientes", icon: UsersRound },
@@ -28,7 +28,7 @@ export function DesktopNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="space-y-1 p-3">
+    <nav className="space-y-1 overflow-y-auto p-3">
       {nav.map((item) => {
         const active = isActive(pathname, item.href);
 
@@ -57,7 +57,7 @@ export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-1 overflow-x-auto px-4 pb-3 lg:hidden">
+    <nav className="grid grid-cols-2 gap-2 px-4 pb-3 sm:grid-cols-4 md:grid-cols-5 lg:hidden">
       {nav.map((item) => {
         const active = isActive(pathname, item.href);
 
@@ -66,7 +66,7 @@ export function MobileNav() {
             key={item.href}
             asChild
             className={cn(
-              "group rounded-full text-muted-foreground hover:text-foreground",
+              "group w-full justify-start rounded-lg text-muted-foreground hover:text-foreground",
               active && "bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90 hover:text-primary-foreground",
             )}
             size="sm"

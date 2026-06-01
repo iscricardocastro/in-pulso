@@ -645,6 +645,100 @@ body.has-modal::before {
   display: none;
 }
 
+.sale-receipt-print-area {
+  display: none;
+}
+
+.sale-receipt {
+  color: #111827;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.sale-receipt-header,
+.sale-receipt-footer {
+  text-align: center;
+}
+
+.sale-receipt-company {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sale-receipt-section {
+  border-top: 1px dashed #9ca3af;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.sale-receipt-subtitle {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.sale-receipt-line,
+.sale-receipt-items-head,
+.sale-receipt-item {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.sale-receipt-line {
+  align-items: baseline;
+  margin-top: 2px;
+}
+
+.sale-receipt-line-strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sale-receipt-items-head {
+  color: #4b5563;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sale-receipt-item {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.sale-receipt-muted {
+  color: #4b5563;
+  font-size: 10px;
+}
+
+.sale-receipt-footer {
+  border-top: 1px dashed #9ca3af;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.sale-receipt-barcode {
+  margin: 0 auto 8px;
+  max-width: 100%;
+  text-align: center;
+}
+
+.sale-receipt-barcode svg {
+  display: block;
+  height: 42px;
+  margin: 0 auto 2px;
+  max-width: 100%;
+}
+
+.sale-receipt-barcode p {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -682,6 +776,11 @@ body.has-modal::before {
 }
 
 @media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
   body.has-modal {
     overflow: visible;
     touch-action: auto;
@@ -691,18 +790,50 @@ body.has-modal::before {
     display: none;
   }
 
-  body * {
+  body.is-printing-receipt {
+    margin: 0;
+  }
+
+  body.is-printing-receipt > *:not(.sale-receipt-print-area) {
+    display: none !important;
+  }
+
+  body.is-printing-receipt .sale-receipt-print-area,
+  body.is-printing-receipt .sale-receipt-print-area * {
+    visibility: visible;
+  }
+
+  body:not(.is-printing-receipt) * {
     visibility: hidden;
   }
 
-  .print-area,
-  .print-area * {
+  body:not(.is-printing-receipt) .print-area,
+  body:not(.is-printing-receipt) .print-area * {
     visibility: visible;
   }
 
   .print-area {
     position: absolute;
     inset: 0;
+  }
+
+  body.is-printing-receipt .sale-receipt-print-area {
+    display: block;
+    inset: auto;
+    left: 0;
+    margin: 0;
+    padding: 4mm;
+    position: static;
+    transform: none;
+  }
+
+  .sale-receipt-80 {
+    box-sizing: border-box;
+    width: 80mm;
+  }
+
+  .sale-receipt-standard {
+    width: min(190mm, 100%);
   }
 
   body.is-printing-copies .print-area:not(.print-copies-area) {

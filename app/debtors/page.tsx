@@ -3,13 +3,24 @@ import { DebtorsView } from "@/features/debtors/debtors-view";
 import { getCatalogItems } from "@/services/catalogs";
 import { getDebtors } from "@/services/debtors";
 
-export default async function DebtorsPage() {
+type DebtorsPageProps = {
+  searchParams: Promise<{ customer?: string; sale?: string }>;
+};
+
+export default async function DebtorsPage({ searchParams }: DebtorsPageProps) {
+  const { customer, sale } = await searchParams;
   const [debtors, catalogs] = await Promise.all([getDebtors(), getCatalogItems()]);
   const paymentMethods = catalogs.filter((item) => item.kind === "payment_method");
 
   return (
     <AppShell>
-      <DebtorsView debtors={debtors} paymentMethods={paymentMethods} />
+      <DebtorsView
+        debtors={debtors}
+        initialCustomerId={customer}
+        initialSaleNumber={sale}
+        key={`${customer ?? ""}:${sale ?? ""}`}
+        paymentMethods={paymentMethods}
+      />
     </AppShell>
   );
 }

@@ -1,15 +1,35 @@
 import { AppShell } from "@/components/app-shell";
 import { SalesView } from "@/features/sales/sales-view";
 import { getCatalogItems } from "@/services/catalogs";
+import { requireUserContext } from "@/services/context";
 import { getCustomers } from "@/services/customers";
 import { getSales } from "@/services/sales";
 
 export default async function SalesPage() {
-  const [catalogs, customers, sales] = await Promise.all([getCatalogItems(), getCustomers(), getSales()]);
+  const { supabase, profile } = await requireUserContext();
+  const [catalogs, customers, sales, tenantResult] = await Promise.all([
+    getCatalogItems(),
+    getCustomers(),
+    getSales(),
+    supabase.from("tenants").select("id, name, slug").eq("id", profile.tenant_id).single(),
+  ]);
+
+  if (tenantResult.error) throw new Error(tenantResult.error.message);
 
   return (
     <AppShell>
-      <SalesView catalogs={catalogs} customers={customers} sales={sales} />
+      <SalesView
+        catalogs={catalogs}
+        customers={customers}
+        sales={sales}
+        receiptContext={{
+          company: tenantResult.data,
+          seller: {
+            email: profile.email,
+            full_name: profile.full_name,
+          },
+        }}
+      />
     </AppShell>
   );
 }

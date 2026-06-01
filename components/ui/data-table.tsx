@@ -18,11 +18,13 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Search,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -51,13 +53,15 @@ export function DataTable<TData, TValue>({
   pageSizeOptions = [10, 25, 100],
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [tableFilter, setTableFilter] = useState("");
   const [pageSizeOption, setPageSizeOption] = useState(String(pageSizeOptions[0] ?? 10));
+  const activeGlobalFilter = tableFilter || globalFilter || "";
 
   const initialPageSize = pageSizeOptions[0] ?? 10;
   const table = useReactTable({
     data,
     columns,
-    state: { globalFilter, sorting },
+    state: { globalFilter: activeGlobalFilter, sorting },
     initialState: { pagination: { pageIndex: 0, pageSize: initialPageSize } },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -81,7 +85,25 @@ export function DataTable<TData, TValue>({
 
   return (
     <Card>
-      {header ? <CardHeader>{header}</CardHeader> : null}
+      {header || data.length > 0 ? (
+        <CardHeader>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>{header}</div>
+            {data.length > 0 ? (
+              <div className="relative w-full md:max-w-xs">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label="Buscar en tabla"
+                  className="pl-9"
+                  placeholder="Buscar en tabla"
+                  value={tableFilter}
+                  onChange={(event) => setTableFilter(event.target.value)}
+                />
+              </div>
+            ) : null}
+          </div>
+        </CardHeader>
+      ) : null}
       <CardContent className="p-0">
         {data.length === 0 ? (
           <div className="p-5">{emptyState}</div>

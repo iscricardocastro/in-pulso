@@ -275,4 +275,11 @@ export type DashboardStats = {
   inTransitOrders: number;
   inventoryValue: number;
   expectedArrivals: number;
+  weeklySales: number;
+  weeklyPaid: number;
+  weeklyBalanceDue: number;
+  weeklySalesCount: number;
+  openDebt: number;
+  debtorCount: number;
+  openDebtCount: number;
 };

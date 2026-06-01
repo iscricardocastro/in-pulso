@@ -173,18 +173,6 @@ export function CustomersView({ customers }: { customers: Customer[] }) {
         data={customers}
         emptyState={<EmptyState icon={UserRound} title="Sin clientes" description="Crea clientes con nombre y agrega contacto cuando lo necesites." />}
         globalFilter={query}
-        header={
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              aria-label="Buscar clientes"
-              className="pl-10"
-              placeholder="Buscar por nombre, ubicacion, telefono o email"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
-        }
       />
     </div>
   );
