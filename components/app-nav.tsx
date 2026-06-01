@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import type { Route } from "next";
+import { usePathname } from "next/navigation";
 import { Boxes, ClipboardList, Gauge, HandCoins, History, QrCode, ShoppingCart, Tags, Upload, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
@@ -17,31 +21,66 @@ const nav = [
 ] satisfies { href: Route; label: string; icon: typeof Gauge }[];
 
 export function DesktopNav() {
+  const pathname = usePathname();
+
   return (
     <nav className="space-y-1 overflow-y-auto p-3">
-      {nav.map((item) => (
-        <Button key={item.href} asChild className="group w-full justify-start rounded-xl text-muted-foreground hover:text-foreground" variant="ghost">
-          <Link href={item.href}>
-            <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
-            {item.label}
-          </Link>
-        </Button>
-      ))}
+      {nav.map((item) => {
+        const active = isActivePath(pathname, item.href);
+
+        return (
+          <Button
+            key={item.href}
+            asChild
+            className={cn(
+              "group w-full justify-start rounded-xl text-muted-foreground hover:text-foreground",
+              active &&
+                "bg-accent text-accent-foreground shadow-sm ring-1 ring-primary/15 hover:bg-accent hover:text-accent-foreground",
+            )}
+            variant="ghost"
+          >
+            <Link aria-current={active ? "page" : undefined} href={item.href}>
+              <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
+              {item.label}
+            </Link>
+          </Button>
+        );
+      })}
     </nav>
   );
 }
 
 export function MobileNav() {
+  const pathname = usePathname();
+
   return (
     <nav className="grid grid-cols-2 gap-2 px-4 pb-3 sm:grid-cols-4 md:grid-cols-5 lg:hidden">
-      {nav.map((item) => (
-        <Button key={item.href} asChild className="group w-full justify-start rounded-lg text-muted-foreground hover:text-foreground" size="sm" variant="ghost">
-          <Link href={item.href}>
-            <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
-            {item.label}
-          </Link>
-        </Button>
-      ))}
+      {nav.map((item) => {
+        const active = isActivePath(pathname, item.href);
+
+        return (
+          <Button
+            key={item.href}
+            asChild
+            className={cn(
+              "group w-full justify-start rounded-lg text-muted-foreground hover:text-foreground",
+              active &&
+                "bg-accent text-accent-foreground shadow-sm ring-1 ring-primary/15 hover:bg-accent hover:text-accent-foreground",
+            )}
+            size="sm"
+            variant="ghost"
+          >
+            <Link aria-current={active ? "page" : undefined} href={item.href}>
+              <item.icon className="h-5 w-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
+              {item.label}
+            </Link>
+          </Button>
+        );
+      })}
     </nav>
   );
+}
+
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
