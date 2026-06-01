@@ -11,30 +11,20 @@ import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { Select } from "@/components/ui/select";
 import { Barcode } from "@/features/labels/barcode";
-import { useAppStore } from "@/hooks/use-app-store";
 import { productBrand, productModel } from "@/lib/catalog-display";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types/database";
 
 export function LabelsView({ products }: { products: Product[] }) {
-  const query = useAppStore((state) => state.query);
   const [mode, setMode] = useState<"qr" | "barcode">("qr");
   const [printProduct, setPrintProduct] = useState<Product | null>(null);
   const [printCopies, setPrintCopies] = useState("1");
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-  const filtered = useMemo(() => {
-    const term = query.toLowerCase();
-    return products.filter((product) =>
-      [product.name, product.internal_code, productModel(product), productBrand(product)].some((value) =>
-        String(value || "").toLowerCase().includes(term),
-      ),
-    );
-  }, [products, query]);
   const visibleProducts = useMemo(() => {
-    if (selectedProductIds.length === 0) return filtered;
+    if (selectedProductIds.length === 0) return products;
     const selected = new Set(selectedProductIds);
-    return filtered.filter((product) => selected.has(product.id));
-  }, [filtered, selectedProductIds]);
+    return products.filter((product) => selected.has(product.id));
+  }, [products, selectedProductIds]);
 
   useEffect(() => {
     function resetPrintSelection() {

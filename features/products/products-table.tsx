@@ -12,7 +12,6 @@ import { ConfirmDeleteButton } from "@/components/ui/confirm-delete-button";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductForm } from "@/features/products/product-form";
-import { useAppStore } from "@/hooks/use-app-store";
 import { useFormReveal } from "@/hooks/use-form-reveal";
 import { productBrand, productCategory, productModel } from "@/lib/catalog-display";
 import { money } from "@/lib/utils";
@@ -23,14 +22,15 @@ export function ProductsTable({
   products,
   suppliers,
   catalogs,
+  initialQuery,
   stockFilter,
 }: {
   products: Product[];
   suppliers: Supplier[];
   catalogs: CatalogItem[];
+  initialQuery?: string;
   stockFilter?: string;
 }) {
-  const query = useAppStore((state) => state.query);
   const [editing, setEditing] = useState<Product | null>(null);
   const [showCreate, setShowCreate] = useState(products.length === 0);
   const { formRef, revealForm } = useFormReveal<HTMLDivElement>();
@@ -230,7 +230,7 @@ export function ProductsTable({
             description={stockFilterLabel ? "No hay piezas que coincidan con este filtro." : "Crea o importa piezas para empezar a controlar minimos."}
           />
         }
-        globalFilter={query}
+        globalFilter={initialQuery}
         noResultsText={stockFilterLabel ? `Sin resultados dentro de ${stockFilterLabel.toLowerCase()}.` : undefined}
       />
     </div>

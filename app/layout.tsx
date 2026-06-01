@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
-import { Toaster } from "sonner";
 import "@/app/globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { PwaRegister } from "@/components/pwa-register";
-import { Analytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { ClientEffects } from "@/components/client-effects";
 
 export const metadata: Metadata = {
   title: "Pulso | InMexico",
@@ -18,14 +14,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var t=localStorage.getItem("theme");var s=window.matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||(!t&&s))document.documentElement.classList.add("dark")}catch(e){}',
+          }}
+        />
+      </head>
       <body className="min-h-screen antialiased">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-          <Toaster richColors position="top-right" />
-          <SpeedInsights />
-          <PwaRegister />
-          <Analytics />
-        </ThemeProvider>
+        {children}
+        <ClientEffects />
       </body>
     </html>
   );

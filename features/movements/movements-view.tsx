@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MovementForm } from "@/features/movements/movement-form";
-import { useAppStore } from "@/hooks/use-app-store";
 import { useFormReveal } from "@/hooks/use-form-reveal";
 import { formatDate } from "@/lib/utils";
 import type { InventoryMovement, Product } from "@/types/database";
@@ -27,7 +26,6 @@ export function MovementsView({
   products: Product[];
   movements: InventoryMovement[];
 }) {
-  const query = useAppStore((state) => state.query);
   const [showCreate, setShowCreate] = useState(movements.length === 0);
   const { formRef, revealForm } = useFormReveal<HTMLDivElement>();
 
@@ -130,7 +128,6 @@ export function MovementsView({
             description="Registra entradas, salidas o ajustes para auditar cada cambio de inventario."
           />
         }
-        globalFilter={query}
       />
     </div>
   );
