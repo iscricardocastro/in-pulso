@@ -11,7 +11,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-border/70 bg-card/90 backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-border/70 bg-card/90 backdrop-blur-xl lg:flex">
         <div className="flex h-20 items-center gap-3 border-b border-border/70 px-5">
           <div className="motion-press flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card shadow-sm shadow-slate-950/10 ring-1 ring-border/70 dark:bg-foreground/5 dark:shadow-black/20">
             <BrandLogo imageClassName="h-12 w-12" priority />
@@ -21,7 +21,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-muted-foreground">InMexico</p>
           </div>
         </div>
-        <DesktopNav />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <DesktopNav />
+        </div>
       </aside>
 
       <div className="flex min-h-screen flex-col lg:pl-64">

@@ -85,6 +85,53 @@ export type InventoryMovement = {
   users?: { full_name: string | null; email: string } | null;
 };
 
+export type InventoryAuditStatus = "open" | "closed" | "canceled";
+export type InventoryAuditUncountedPolicy = "ignore" | "zero";
+
+export type InventoryAudit = {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  audit_number: string;
+  status: InventoryAuditStatus;
+  category_ids: string[];
+  category_names: string[];
+  notes: string | null;
+  apply_inventory: boolean;
+  uncounted_policy: InventoryAuditUncountedPolicy;
+  total_items: number;
+  counted_items: number;
+  expected_pieces: number;
+  counted_pieces: number;
+  positive_difference: number;
+  negative_difference: number;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  users?: { full_name: string | null; email: string } | null;
+  items?: InventoryAuditItem[];
+};
+
+export type InventoryAuditItem = {
+  id: string;
+  tenant_id: string;
+  audit_id: string;
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  brand: string | null;
+  model: string | null;
+  category: string | null;
+  initial_stock: number;
+  closing_stock: number | null;
+  counted_quantity: number | null;
+  difference: number;
+  counted: boolean;
+  created_at: string;
+  updated_at: string;
+  products?: Pick<Product, "id" | "name" | "internal_code" | "current_stock"> | null;
+};
+
 export type DiscountType = "amount" | "percent";
 export type SaleStatus = "completed" | "with_debt" | "partially_refunded" | "refunded" | "canceled";
 

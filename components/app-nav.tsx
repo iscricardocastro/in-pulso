@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Boxes, ClipboardList, Gauge, HandCoins, History, QrCode, ShoppingCart, Tags, Upload, UsersRound } from "lucide-react";
+import { Boxes, ClipboardCheck, ClipboardList, Gauge, HandCoins, History, QrCode, ShoppingCart, Tags, Upload, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ const nav = [
   { href: "/sales" as Route, label: "Sales", icon: ShoppingCart },
   { href: "/debtors" as Route, label: "Deudores", icon: HandCoins },
   { href: "/products", label: "Productos", icon: Boxes },
+  { href: "/inventory-audits" as Route, label: "Conteos", icon: ClipboardCheck },
   { href: "/customers" as Route, label: "Clientes", icon: UsersRound },
   { href: "/catalogs", label: "Catalogos", icon: Tags },
   { href: "/purchase-orders", label: "Pedidos", icon: ClipboardList },
