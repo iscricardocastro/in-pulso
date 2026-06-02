@@ -1,6 +1,6 @@
 import { eachDayOfInterval, endOfDay, startOfDay } from "date-fns";
 import { requireUserContext } from "@/services/context";
-import type { Customer, Sale, SalePayment, SaleRefund } from "@/types/database";
+import type { Customer, Sale, SalePayment, SaleRefund, ServiceNote, ServiceNotePayment } from "@/types/database";
 
 type ReportSale = Pick<Sale, "id" | "sale_number" | "status" | "total" | "paid_total" | "balance_due" | "created_at"> & {
   customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | null;
@@ -16,6 +16,23 @@ type RawReportSale = Omit<ReportSale, "customers" | "refundAmount" | "refundExtr
   customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | Pick<Customer, "id" | "name" | "phone" | "email">[] | null;
 };
 
+type ReportServiceNote = Pick<ServiceNote, "id" | "note_number" | "status" | "total" | "paid_total" | "balance_due" | "created_at"> & {
+  customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | null;
+  payments?: ServiceNotePayment[];
+  refundAmount: 0;
+  refundExtra: 0;
+  refundRetained: 0;
+  refundValue: 0;
+  source: "note";
+  sale_number: string;
+};
+
+type ReportRevenueItem = ReportSale & { source: "sale" } | ReportServiceNote;
+
+type RawReportServiceNote = Omit<ReportServiceNote, "customers" | "refundAmount" | "refundExtra" | "refundRetained" | "refundValue" | "source" | "sale_number"> & {
+  customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | Pick<Customer, "id" | "name" | "phone" | "email">[] | null;
+};
+
 export type DailyReportRange = {
   end: string;
   endDate: string;
@@ -27,36 +44,59 @@ export async function getDailySalesReport(params: { end?: string; start?: string
   const { supabase } = await requireUserContext();
   const range = getReportRange(params);
 
-  const { data, error } = await supabase
+  const [salesResult, serviceNotesResult] = await Promise.all([
+    supabase
     .from("sales")
     .select("id, sale_number, status, total, paid_total, balance_due, created_at, customers(id, name, phone, email), payments:sale_payments(*), refunds:sale_refunds(*, items:sale_refund_items(*))")
     .gte("created_at", range.start)
     .lte("created_at", range.end)
-    .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("service_notes")
+      .select("id, note_number, status, total, paid_total, balance_due, created_at, customers(id, name, phone, email), payments:service_note_payments(*)")
+      .gte("created_at", range.start)
+      .lte("created_at", range.end)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  if (error) throw new Error(error.message);
+  if (salesResult.error) throw new Error(salesResult.error.message);
+  if (serviceNotesResult.error) throw new Error(serviceNotesResult.error.message);
 
-  const sales = ((data ?? []) as unknown as RawReportSale[])
+  const sales = ((salesResult.data ?? []) as unknown as RawReportSale[])
     .map((sale) => ({
       ...sale,
       customers: Array.isArray(sale.customers) ? (sale.customers[0] ?? null) : (sale.customers ?? null),
+      source: "sale" as const,
       ...summarizeSaleRefunds(sale.refunds ?? []),
     }))
     .filter((sale) => sale.status !== "canceled");
-  const payments = sales.flatMap((sale) => sale.payments ?? []);
-  const paidSales = sales.filter((sale) => Number(sale.balance_due ?? 0) <= 0);
-  const pendingSales = sales.filter((sale) => Number(sale.balance_due ?? 0) > 0);
-  const grossTotal = sum(sales, "total");
+  const serviceNotes = ((serviceNotesResult.data ?? []) as unknown as RawReportServiceNote[])
+    .map((note) => ({
+      ...note,
+      customers: Array.isArray(note.customers) ? (note.customers[0] ?? null) : (note.customers ?? null),
+      refundAmount: 0 as const,
+      refundExtra: 0 as const,
+      refundRetained: 0 as const,
+      refundValue: 0 as const,
+      sale_number: note.note_number,
+      source: "note" as const,
+    }))
+    .filter((note) => note.status !== "canceled");
+  const revenueItems: ReportRevenueItem[] = [...sales, ...serviceNotes].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+  const payments: (SalePayment | ServiceNotePayment)[] = revenueItems.flatMap((item) => [...(item.payments ?? [])]);
+  const paidSales = revenueItems.filter((item) => Number(item.balance_due ?? 0) <= 0);
+  const pendingSales = revenueItems.filter((item) => Number(item.balance_due ?? 0) > 0);
+  const grossTotal = sum(revenueItems, "total");
   const refundValue = sum(sales, "refundValue");
   const refundAmount = sum(sales, "refundAmount");
   const refundRetained = sum(sales, "refundRetained");
   const refundExtra = sum(sales, "refundExtra");
-  const total = sumNetSales(sales);
-  const paid = sumNetPaid(sales);
-  const pending = sum(sales, "balance_due");
+  const total = sumNetSales(revenueItems);
+  const paid = sumNetPaid(revenueItems);
+  const pending = sum(revenueItems, "balance_due");
   const refunds = sales.flatMap((sale) => sale.refunds ?? []);
   const paymentTotal = paid;
-  const averageTicket = sales.length > 0 ? total / sales.length : 0;
+  const averageTicket = revenueItems.length > 0 ? total / revenueItems.length : 0;
 
   const salesByDay = eachDayOfInterval({
     start: new Date(range.start),
@@ -64,31 +104,33 @@ export async function getDailySalesReport(params: { end?: string; start?: string
   }).map((day) => {
     const dayStart = startOfDay(day).getTime();
     const dayEnd = endOfDay(day).getTime();
-    const daySales = sales.filter((sale) => {
-      const time = new Date(sale.created_at).getTime();
+    const dayItems = revenueItems.filter((item) => {
+      const time = new Date(item.created_at).getTime();
       return time >= dayStart && time <= dayEnd;
     });
+    const daySales = dayItems.filter((item) => item.source === "sale");
 
     return {
-      count: daySales.length,
+      count: dayItems.length,
       date: toInputDate(day),
       label: new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short" }).format(day),
-      paid: sumNetPaid(daySales),
-      pending: sum(daySales, "balance_due"),
+      paid: sumNetPaid(dayItems),
+      pending: sum(dayItems, "balance_due"),
       refundAmount: sum(daySales, "refundAmount"),
       refundRetained: sum(daySales, "refundRetained"),
-      total: sumNetSales(daySales),
+      total: sumNetSales(dayItems),
     };
   });
 
   const paymentMethods = Array.from(groupPayments(payments, refunds).values()).sort((a, b) => b.total - a.total);
   const refundedSales = sales.filter((sale) => sale.refundAmount > 0);
   const topPending = pendingSales.sort((a, b) => Number(b.balance_due ?? 0) - Number(a.balance_due ?? 0)).slice(0, 6);
-  const recentSales = sales.slice(0, 8);
+  const recentSales = revenueItems.slice(0, 8);
 
   return {
     averageTicket,
     grossTotal,
+    notesCount: serviceNotes.length,
     paid,
     paidCount: paidSales.length,
     paymentMethods,
@@ -104,6 +146,7 @@ export async function getDailySalesReport(params: { end?: string; start?: string
     refundValue,
     salesByDay,
     salesCount: sales.length,
+    totalCount: revenueItems.length,
     topPending,
     total,
   };
@@ -140,7 +183,7 @@ function summarizeSaleRefunds(refunds: SaleRefund[]) {
   };
 }
 
-function groupPayments(payments: SalePayment[], refunds: SaleRefund[]) {
+function groupPayments(payments: (SalePayment | ServiceNotePayment)[], refunds: SaleRefund[]) {
   const grouped = new Map<string, { count: number; id: string; name: string; refundCount: number; refunded: number; total: number }>();
 
   for (const payment of payments) {
@@ -191,11 +234,11 @@ function sum<T extends Record<K, number>, K extends keyof T>(items: T[], key: K)
   return items.reduce((total, item) => total + Number(item[key] ?? 0), 0);
 }
 
-function sumNetPaid(sales: ReportSale[]) {
+function sumNetPaid(sales: ReportRevenueItem[]) {
   return sales.reduce((total, sale) => total + Math.max(0, Number(sale.paid_total ?? 0) - sale.refundAmount), 0);
 }
 
-function sumNetSales(sales: ReportSale[]) {
+function sumNetSales(sales: ReportRevenueItem[]) {
   return sales.reduce((total, sale) => total + Math.max(0, Number(sale.total ?? 0) - sale.refundAmount), 0);
 }
 

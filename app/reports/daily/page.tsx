@@ -113,7 +113,7 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
           <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6 xl:grid-cols-4">
             <CashSummaryLink
               detail={`Venta bruta ${money(report.grossTotal)}`}
-              href="/sales"
+              href="#ultimos-movimientos"
               icon={HandCoins}
               label="Tengo en caja"
               tone="emerald"
@@ -136,10 +136,10 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
               value={money(report.refundRetained)}
             />
             <CashSummaryLink
-              detail={`${report.pendingCount} venta(s) con saldo`}
-              href="/debtors"
+              detail={`${report.pendingCount} movimiento(s) con saldo`}
+              href="#pendientes"
               icon={UsersRound}
-              label="Deudores"
+              label="Pendientes"
               tone="blue"
               value={money(report.pending)}
             />
@@ -147,8 +147,8 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard detail={`${report.salesCount} venta(s), ticket ${money(report.averageTicket)}`} icon={TrendingUp} label="Venta neta" max={report.grossTotal} tone="emerald" value={money(report.total)} width={report.grossTotal > 0 ? Math.round((report.total / report.grossTotal) * 100) : 0} />
-          <MetricCard detail={`${report.paidCount} venta(s) cubiertas`} icon={CreditCard} label="Cobrado neto" max={report.total} tone="blue" value={money(report.paid)} width={paidPercent} />
+          <MetricCard detail={`${report.salesCount} venta(s), ${report.notesCount} nota(s), ticket ${money(report.averageTicket)}`} icon={TrendingUp} label="Venta neta" max={report.grossTotal} tone="emerald" value={money(report.total)} width={report.grossTotal > 0 ? Math.round((report.total / report.grossTotal) * 100) : 0} />
+          <MetricCard detail={`${report.paidCount} movimiento(s) cubiertos`} icon={CreditCard} label="Cobrado neto" max={report.total} tone="blue" value={money(report.paid)} width={paidPercent} />
           <MetricCard detail={`${report.refundValue > 0 ? `${money(report.refundValue)} valor piezas` : "Sin devoluciones"}`} icon={UsersRound} label="Devuelto" max={report.grossTotal} tone="amber" value={money(report.refundAmount)} width={report.grossTotal > 0 ? Math.round((report.refundAmount / report.grossTotal) * 100) : 0} />
           <MetricCard detail={report.refundExtra > 0 ? `${money(report.refundExtra)} extra devuelto` : "Diferencia a favor negocio"} icon={WalletCards} label="Retenido devolucion" max={report.grossTotal} tone="cyan" value={money(report.refundRetained)} width={report.grossTotal > 0 ? Math.round((report.refundRetained / report.grossTotal) * 100) : 0} />
         </section>
@@ -195,7 +195,7 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
                       <div className="w-full min-w-0 text-center">
                         <p className="truncate text-xs font-medium text-muted-foreground">{day.label}</p>
                         <p className="truncate text-xs font-semibold">{money(day.total)}</p>
-                        <p className="text-[11px] text-muted-foreground">{day.count} ventas</p>
+                        <p className="text-[11px] text-muted-foreground">{day.count} movs.</p>
                       </div>
                     </div>
                   );
@@ -204,7 +204,7 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="pendientes">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <WalletCards className="h-5 w-5 text-primary" />
@@ -282,12 +282,12 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
             </CardContent>
           </Card>
 
-          <Card>
+          <Card id="ultimos-movimientos">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <CardTitle>Pendientes</CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">Ventas con saldo dentro del periodo.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Ventas y notas con saldo dentro del periodo.</p>
                 </div>
                 <Link className="text-sm font-medium text-primary transition-colors hover:text-primary/80" href="/debtors">
                   Ver deudores
@@ -304,7 +304,7 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
                     badge={money(Number(sale.balance_due ?? 0))}
                     badgeVariant="warning"
                     customer={sale.customers?.name ?? "Venta mostrador"}
-                    href={`/debtors?sale=${sale.sale_number}` as Route}
+                    href={(sale.source === "note" ? "/service-notes" : `/debtors?sale=${sale.sale_number}`) as Route}
                     saleNumber={sale.sale_number}
                     value={formatDate(sale.created_at)}
                   />
@@ -317,25 +317,25 @@ export default async function DailyReportPage({ searchParams }: DailyReportPageP
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Ultimas ventas</CardTitle>
+                  <CardTitle>Ultimos movimientos</CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">Movimiento reciente del periodo.</p>
                 </div>
                 <Link className="text-sm font-medium text-primary transition-colors hover:text-primary/80" href="/sales">
-                  Historial
+                  Ventas
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {report.recentSales.length === 0 ? (
-                <EmptyPanel icon={ReceiptText} title="Sin ventas" description="No hay ventas registradas en este rango." />
+                <EmptyPanel icon={ReceiptText} title="Sin movimientos" description="No hay ventas ni notas en este rango." />
               ) : (
                 report.recentSales.map((sale) => (
                   <SaleRow
                     key={sale.id}
-                    badge={sale.refundAmount > 0 ? "Con devolucion" : sale.balance_due > 0 ? "Pendiente" : "Pagada"}
+                    badge={sale.source === "note" ? "Nota" : sale.refundAmount > 0 ? "Con devolucion" : sale.balance_due > 0 ? "Pendiente" : "Pagada"}
                     badgeVariant={sale.refundAmount > 0 || sale.balance_due > 0 ? "warning" : "success"}
-                    customer={sale.customers?.name ?? "Venta mostrador"}
-                    href={`/sales?detail=${sale.sale_number}` as Route}
+                    customer={sale.customers?.name ?? (sale.source === "note" ? "Nota" : "Venta mostrador")}
+                    href={(sale.source === "note" ? "/service-notes" : `/sales?detail=${sale.sale_number}`) as Route}
                     saleNumber={sale.sale_number}
                     value={money(Math.max(0, Number(sale.total ?? 0) - sale.refundAmount))}
                   />

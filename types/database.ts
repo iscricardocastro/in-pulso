@@ -214,6 +214,97 @@ export type InventoryAuditItem = {
 
 export type DiscountType = "amount" | "percent";
 export type SaleStatus = "completed" | "with_debt" | "partially_refunded" | "refunded" | "canceled";
+export type ServiceNoteStatus = "received" | "in_progress" | "ready" | "delivered" | "canceled";
+
+export type ServiceTemplateField = {
+  key: string;
+  label: string;
+};
+
+export type ServiceTemplate = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  fields: ServiceTemplateField[];
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceNoteItem = {
+  id: string;
+  tenant_id: string;
+  service_note_id: string;
+  product_id: string | null;
+  item_type: "service" | "part";
+  description: string;
+  product_code: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+  updated_at: string;
+  products?: Pick<Product, "id" | "name" | "internal_code" | "current_stock"> | null;
+};
+
+export type ServiceNotePayment = {
+  id: string;
+  tenant_id: string;
+  service_note_id: string;
+  payment_method_id: string;
+  payment_method_name: string;
+  amount_paid: number;
+  amount_received: number;
+  change_due: number;
+  comments: string | null;
+  created_at: string;
+};
+
+export type ServiceNoteEvent = {
+  id: string;
+  tenant_id: string;
+  service_note_id: string;
+  user_id: string;
+  type: "created" | "updated" | "payment_recorded" | "status_changed" | "delivered" | "canceled";
+  from_status: ServiceNoteStatus | null;
+  to_status: ServiceNoteStatus | null;
+  amount: number | null;
+  payment_method_id: string | null;
+  payment_method_name: string | null;
+  note: string | null;
+  metadata: Json;
+  created_at: string;
+  users?: { full_name: string | null; email: string } | null;
+};
+
+export type ServiceNote = {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  customer_id: string | null;
+  template_id: string | null;
+  note_number: string;
+  status: ServiceNoteStatus;
+  device_fields: Record<string, string>;
+  subtotal: number;
+  discount_type: DiscountType | null;
+  discount_value: number;
+  discount_total: number;
+  total: number;
+  paid_total: number;
+  balance_due: number;
+  inventory_applied: boolean;
+  notes: string | null;
+  delivered_at: string | null;
+  canceled_at: string | null;
+  created_at: string;
+  updated_at: string;
+  customers?: Pick<Customer, "id" | "name" | "phone" | "email"> | null;
+  template?: Pick<ServiceTemplate, "id" | "name" | "fields"> | null;
+  items?: ServiceNoteItem[];
+  payments?: ServiceNotePayment[];
+  events?: ServiceNoteEvent[];
+};
 
 export type SaleItem = {
   id: string;
@@ -405,6 +496,7 @@ export type DashboardStats = {
   weeklySales: number;
   weeklyPaid: number;
   weeklyBalanceDue: number;
+  weeklyNotesCount: number;
   weeklySalesCount: number;
   openDebt: number;
   debtorCount: number;

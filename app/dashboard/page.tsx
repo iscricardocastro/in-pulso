@@ -58,7 +58,7 @@ export default async function DashboardPage() {
     {
       label: "Ventas semana",
       value: money(data.stats.weeklySales),
-      detail: `${data.stats.weeklySalesCount} ventas del rango`,
+      detail: `${data.stats.weeklySalesCount} ventas, ${data.stats.weeklyNotesCount} notas`,
       icon: TrendingUp,
       tone: "success",
       href: "/sales",
@@ -155,7 +155,7 @@ export default async function DashboardPage() {
                       <div className="w-full min-w-0 text-center">
                         <p className="truncate text-xs font-medium capitalize text-muted-foreground">{day.label}</p>
                         <p className="truncate text-xs font-semibold">{money(day.total)}</p>
-                        <p className="text-[11px] text-muted-foreground">{day.count} ventas</p>
+                      <p className="text-[11px] text-muted-foreground">{day.count} movs.</p>
                       </div>
                     </div>
                   );
@@ -217,15 +217,15 @@ export default async function DashboardPage() {
                 data.weeklySales.map((sale) => (
                   <div key={sale.id} className="motion-list-item flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 hover:bg-accent/45">
                     <div className="min-w-0">
-                      <p className="truncate font-medium">{sale.sale_number}</p>
+                      <p className="truncate font-medium">{sale.number}</p>
                       <p className="truncate text-sm text-muted-foreground">
-                        {sale.customers?.name || "Venta mostrador"} · {formatDate(sale.created_at)}
+                        {sale.customers?.name || (sale.source === "note" ? "Nota" : "Venta mostrador")} · {formatDate(sale.created_at)}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-semibold">{money(sale.total)}</p>
                       <Badge variant={sale.balance_due > 0 ? "warning" : "success"}>
-                        {sale.balance_due > 0 ? "Con deuda" : "Pagada"}
+                        {sale.source === "note" ? "Nota" : sale.balance_due > 0 ? "Con deuda" : "Pagada"}
                       </Badge>
                     </div>
                   </div>

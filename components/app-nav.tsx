@@ -14,6 +14,7 @@ import {
   History,
   Menu,
   QrCode,
+  ReceiptText,
   Settings,
   ShoppingCart,
   Tags,
@@ -37,6 +38,7 @@ const navGroups = [
     label: "Operacion",
     items: [
       { href: "/sales" as Route, label: "Ventas", icon: ShoppingCart },
+      { href: "/service-notes" as Route, label: "Notas", icon: ReceiptText },
       { href: "/reports/daily" as Route, label: "Reporte diario", icon: BarChart3 },
       { href: "/debtors" as Route, label: "Deudores", icon: HandCoins },
     ],
