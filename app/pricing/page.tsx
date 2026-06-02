@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { PortalFooter } from "@/components/portal-footer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PricingPlans } from "@/app/pricing/pricing-plans";
@@ -40,7 +41,7 @@ const trustItems = [
 
 export default function PricingPage() {
   return (
-    <main className="min-h-screen bg-white text-slate-950 dark:bg-slate-950 dark:text-white">
+    <main className="flex min-h-screen flex-col bg-white text-slate-950 dark:bg-slate-950 dark:text-white">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">
         <Link className="flex items-center gap-3" href="/login">
           <BrandLogo
@@ -58,7 +59,7 @@ export default function PricingPage() {
         </Button>
       </header>
 
-      <section className="mx-auto w-full max-w-6xl px-4 pb-12 pt-2 sm:px-6 lg:px-8">
+      <section className="mx-auto w-full max-w-6xl flex-1 px-4 pb-12 pt-2 sm:px-6 lg:px-8">
         <div className="text-center">
           <BrandLogo className="mx-auto h-28 w-28" imageClassName="h-28 w-28" priority />
           <div className="mt-5 flex items-center justify-center gap-4">
@@ -126,6 +127,7 @@ export default function PricingPage() {
           </div>
         </section>
       </section>
+      <PortalFooter />
     </main>
   );
 }
