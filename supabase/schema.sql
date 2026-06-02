@@ -9,6 +9,17 @@ create table public.tenants (
   tenant_id uuid generated always as (id) stored,
   name text not null,
   slug text not null unique,
+  legal_name text,
+  tax_id text,
+  phone text,
+  email text,
+  address text,
+  postal_code text,
+  city text,
+  state text,
+  country text,
+  image_url text,
+  image_path text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -294,6 +305,10 @@ alter table public.purchase_order_events enable row level security;
 
 create policy "tenant visible to members" on public.tenants
 for select using (id = public.current_tenant_id());
+
+create policy "tenant update by members" on public.tenants
+for update using (id = public.current_tenant_id())
+with check (id = public.current_tenant_id());
 
 create policy "users isolated by tenant" on public.users
 for all using (tenant_id = public.current_tenant_id())

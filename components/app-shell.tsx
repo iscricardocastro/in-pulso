@@ -7,18 +7,25 @@ import { requireUserContext } from "@/services/context";
 import { SignOutButton } from "@/features/auth/sign-out-button";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
-  const { profile } = await requireUserContext();
+  const { supabase, profile } = await requireUserContext();
+  const { data: company } = await supabase
+    .from("tenants")
+    .select("name, slug, image_url")
+    .eq("id", profile.tenant_id)
+    .single();
+  const companyName = company?.name || "Pulso";
+  const companySubtitle = company?.slug || "InMexico";
 
   return (
     <div className="min-h-screen">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 flex-col border-r border-border/70 bg-card/90 backdrop-blur-xl lg:flex">
         <div className="flex h-20 items-center gap-3 border-b border-border/70 px-5">
           <div className="motion-press flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card shadow-sm shadow-slate-950/10 ring-1 ring-border/70 dark:bg-foreground/5 dark:shadow-black/20">
-            <BrandLogo imageClassName="h-12 w-12" priority />
+            <CompanyImage imageUrl={company?.image_url ?? null} name={companyName} className="h-full w-full p-2" />
           </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight">Pulso</p>
-            <p className="text-xs text-muted-foreground">InMexico</p>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold leading-tight">{companyName}</p>
+            <p className="truncate text-xs text-muted-foreground">{companySubtitle}</p>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -32,12 +39,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <MainSearch />
             <div className="flex items-center justify-between gap-2 md:justify-start">
               <div className="flex items-center gap-2 md:hidden">
-                <BrandLogo
-                  className="h-12 w-12 rounded-2xl bg-card shadow-sm shadow-slate-950/10 ring-1 ring-border/70 dark:bg-foreground/5 dark:shadow-black/20"
-                  imageClassName="h-10 w-10"
-                  priority
-                />
-                <span className="text-sm font-semibold">Pulso</span>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-card shadow-sm shadow-slate-950/10 ring-1 ring-border/70 dark:bg-foreground/5 dark:shadow-black/20">
+                  <CompanyImage imageUrl={company?.image_url ?? null} name={companyName} className="h-full w-full p-2" />
+                </div>
+                <span className="max-w-36 truncate text-sm font-semibold">{companyName}</span>
               </div>
               <div className="flex items-center gap-2">
                 <p className="hidden max-w-44 truncate text-sm text-muted-foreground md:block">
@@ -55,4 +60,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function CompanyImage({ imageUrl, name, className }: { imageUrl: string | null; name: string; className: string }) {
+  if (imageUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img alt={`Imagen de ${name}`} className={`${className} object-contain`} src={imageUrl} />;
+  }
+
+  return <BrandLogo imageClassName="h-12 w-12" priority />;
 }

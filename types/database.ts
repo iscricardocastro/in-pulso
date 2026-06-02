@@ -1,5 +1,25 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+export type Tenant = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string;
+  legal_name: string | null;
+  tax_id: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  image_url: string | null;
+  image_path: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Product = {
   id: string;
   tenant_id: string;

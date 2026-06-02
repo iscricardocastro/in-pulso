@@ -14,6 +14,7 @@ import {
   History,
   Menu,
   QrCode,
+  Settings,
   ShoppingCart,
   Tags,
   Truck,
@@ -63,6 +64,10 @@ const navGroups = [
       { href: "/labels" as Route, label: "Etiquetas", icon: QrCode },
       { href: "/import" as Route, label: "Importar", icon: Upload },
     ],
+  },
+  {
+    label: "Sistema",
+    items: [{ href: "/settings" as Route, label: "Configuracion", icon: Settings }],
   },
 ] satisfies { label: string; items: NavItem[] }[];
 
