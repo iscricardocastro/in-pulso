@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
+import { resolveAuthenticatedHomePath } from "@/services/context";
 
-export default function HomePage() {
-  redirect("/dashboard");
+export default async function HomePage() {
+  redirect(await resolveAuthenticatedHomePath());
 }

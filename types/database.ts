@@ -16,8 +16,68 @@ export type Tenant = {
   country: string | null;
   image_url: string | null;
   image_path: string | null;
+  operational_status: "active" | "suspended";
+  primary_contact_name: string | null;
+  primary_contact_email: string | null;
+  internal_notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PlatformUser = {
+  id: string;
+  email: string;
+  role: "superadmin";
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingCycle = "monthly" | "yearly";
+export type TenantSubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+export type BillingEventType = "payment" | "adjustment" | "cancellation" | "note";
+
+export type BillingPlan = {
+  id: string;
+  name: string;
+  description: string | null;
+  currency: string;
+  monthly_price: number;
+  yearly_price: number;
+  active: boolean;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TenantSubscription = {
+  id: string;
+  tenant_id: string;
+  plan_id: string | null;
+  billing_cycle: BillingCycle;
+  status: TenantSubscriptionStatus;
+  started_at: string;
+  current_period_end: string | null;
+  canceled_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  billing_plans?: BillingPlan | null;
+};
+
+export type BillingEvent = {
+  id: string;
+  tenant_id: string;
+  subscription_id: string | null;
+  platform_user_id: string | null;
+  type: BillingEventType;
+  amount: number;
+  currency: string;
+  occurred_at: string;
+  note: string | null;
+  created_at: string;
+  tenants?: Pick<Tenant, "id" | "name" | "slug"> | null;
+  billing_plans?: Pick<BillingPlan, "id" | "name"> | null;
+  platform_users?: Pick<PlatformUser, "email"> | null;
 };
 
 export type Product = {

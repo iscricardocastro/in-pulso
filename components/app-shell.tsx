@@ -3,11 +3,15 @@ import { DesktopNav, MobileNav } from "@/components/app-nav";
 import { MainSearch } from "@/components/main-search";
 import { PortalFooter } from "@/components/portal-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { requireUserContext } from "@/services/context";
+import { getPlatformAdminContext, requireUserContext } from "@/services/context";
 import { SignOutButton } from "@/features/auth/sign-out-button";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const { supabase, profile } = await requireUserContext();
+  const platformContext = await getPlatformAdminContext();
   const { data: company } = await supabase
     .from("tenants")
     .select("name, slug, image_url")
@@ -48,6 +52,14 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="hidden max-w-44 truncate text-sm text-muted-foreground md:block">
                   {profile.full_name || profile.email}
                 </p>
+                {platformContext ? (
+                  <Button asChild className="hidden md:inline-flex" size="sm" variant="outline">
+                    <Link href="/admin">
+                      <ShieldCheck className="h-4 w-4" />
+                      Admin
+                    </Link>
+                  </Button>
+                ) : null}
                 <ThemeToggle />
                 <SignOutButton />
               </div>

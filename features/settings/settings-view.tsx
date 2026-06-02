@@ -1,7 +1,7 @@
 "use client";
 
 import { Building2, ImageUp, Save, Upload, X } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,19 +48,14 @@ export function SettingsView({ company }: { company: Tenant }) {
     image_path: company.image_path ?? "",
   }));
   const [file, setFile] = useState<File | null>(null);
-  const [filePreviewUrl, setFilePreviewUrl] = useState("");
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (!file) {
-      setFilePreviewUrl("");
-      return;
-    }
+  const filePreviewUrl = useMemo(() => (file ? URL.createObjectURL(file) : ""), [file]);
 
-    const nextUrl = URL.createObjectURL(file);
-    setFilePreviewUrl(nextUrl);
-    return () => URL.revokeObjectURL(nextUrl);
-  }, [file]);
+  useEffect(() => {
+    if (!filePreviewUrl) return;
+    return () => URL.revokeObjectURL(filePreviewUrl);
+  }, [filePreviewUrl]);
 
   const previewUrl = filePreviewUrl || draft.image_url;
 
