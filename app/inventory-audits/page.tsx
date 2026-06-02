@@ -2,14 +2,14 @@ import { AppShell } from "@/components/app-shell";
 import { InventoryAuditsView } from "@/features/inventory-audits/inventory-audits-view";
 import { getCatalogItems } from "@/services/catalogs";
 import { requireUserContext } from "@/services/context";
-import { getInventoryAudits, getOpenInventoryAudit } from "@/services/inventory-audits";
+import { getInventoryAudits, getOpenInventoryAudits } from "@/services/inventory-audits";
 
 export default async function InventoryAuditsPage() {
   const { supabase, profile } = await requireUserContext();
-  const [catalogs, audits, openAudit, tenantResult] = await Promise.all([
+  const [catalogs, audits, openAudits, tenantResult] = await Promise.all([
     getCatalogItems(),
     getInventoryAudits(),
-    getOpenInventoryAudit(),
+    getOpenInventoryAudits(),
     supabase.from("tenants").select("id, name, slug").eq("id", profile.tenant_id).single(),
   ]);
 
@@ -20,7 +20,7 @@ export default async function InventoryAuditsPage() {
       <InventoryAuditsView
         audits={audits}
         catalogs={catalogs}
-        openAudit={openAudit}
+        openAudits={openAudits}
         receiptContext={{
           company: tenantResult.data,
           user: {

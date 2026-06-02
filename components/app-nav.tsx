@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge },
-  { href: "/sales" as Route, label: "Sales", icon: ShoppingCart },
+  { href: "/sales" as Route, label: "Ventas", icon: ShoppingCart },
   { href: "/debtors" as Route, label: "Deudores", icon: HandCoins },
   { href: "/products", label: "Productos", icon: Boxes },
   { href: "/inventory-audits" as Route, label: "Conteos", icon: ClipboardCheck },

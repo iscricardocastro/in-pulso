@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ClipboardCheck, ListChecks, Minus, Plus, Printer, Save, Search, X } from "lucide-react";
+import { Ban, Check, ClipboardCheck, Eye, ListChecks, Minus, Plus, Printer, Save, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -15,11 +15,13 @@ import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, formatDate } from "@/lib/utils";
 import {
+  cancelInventoryAudit,
   closeInventoryAudit,
   countInventoryAuditItem,
   createInventoryAudit,
   getInventoryAuditByNumber,
 } from "@/services/inventory-audits";
+import type { CountInventoryAuditItemResult } from "@/services/inventory-audits";
 import type { CatalogItem, InventoryAudit, InventoryAuditItem } from "@/types/database";
 
 type ReceiptContext = {
@@ -42,28 +44,40 @@ type CloseOptions = {
 export function InventoryAuditsView({
   audits,
   catalogs,
-  openAudit,
+  openAudits,
   receiptContext,
 }: {
   audits: InventoryAudit[];
   catalogs: CatalogItem[];
-  openAudit: InventoryAudit | null;
+  openAudits: InventoryAudit[];
   receiptContext: ReceiptContext;
 }) {
   const router = useRouter();
   const categories = catalogs.filter((item) => item.kind === "category");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [selectedAuditId, setSelectedAuditId] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [query, setQuery] = useState("");
   const [scanQuantity, setScanQuantity] = useState("1");
   const [closeOpen, setCloseOpen] = useState(false);
+  const [cancelAudit, setCancelAudit] = useState<InventoryAudit | null>(null);
+  const [detailAudit, setDetailAudit] = useState<InventoryAudit | null>(null);
   const [printAudit, setPrintAudit] = useState<InventoryAudit | null>(null);
+  const [localAudit, setLocalAudit] = useState<InventoryAudit | null>(null);
+  const [closedAuditId, setClosedAuditId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const selectedOpenAudit = openAudits.find((audit) => audit.id === selectedAuditId) ?? null;
+  const workingAudit = closedAuditId === selectedAuditId ? null : localAudit?.id === selectedAuditId ? localAudit : selectedOpenAudit;
+  const reservedCategoryIds = useMemo(
+    () => new Set(openAudits.flatMap((audit) => audit.category_ids)),
+    [openAudits],
+  );
 
   const sortedItems = useMemo(
-    () => [...(openAudit?.items ?? [])].sort((a, b) => `${a.category ?? ""}${a.product_name}`.localeCompare(`${b.category ?? ""}${b.product_name}`)),
-    [openAudit],
+    () => [...(workingAudit?.items ?? [])].sort((a, b) => `${a.category ?? ""}${a.product_name}`.localeCompare(`${b.category ?? ""}${b.product_name}`)),
+    [workingAudit],
   );
   const filteredItems = useMemo(() => {
     const clean = query.trim().toLowerCase();
@@ -71,16 +85,16 @@ export function InventoryAuditsView({
     return sortedItems.filter((item) => itemMatchesQuery(item, clean));
   }, [query, sortedItems]);
   const groupedItems = useMemo(() => groupItemsByCategory(filteredItems), [filteredItems]);
-  const summary = useMemo(() => summarizeItems(openAudit?.items ?? []), [openAudit]);
+  const summary = useMemo(() => summarizeItems(workingAudit?.items ?? []), [workingAudit]);
   const stockChanged = useMemo(
-    () => (openAudit?.items ?? []).some((item) => item.products && item.products.current_stock !== item.initial_stock),
-    [openAudit],
+    () => (workingAudit?.items ?? []).some((item) => item.products && item.products.current_stock !== item.initial_stock),
+    [workingAudit],
   );
 
   useEffect(() => {
-    if (!openAudit) return;
+    if (!workingAudit) return;
     inputRef.current?.focus();
-  }, [openAudit]);
+  }, [workingAudit]);
 
   useEffect(() => {
     if (!printAudit) return;
@@ -108,9 +122,14 @@ export function InventoryAuditsView({
   function startAudit() {
     startTransition(async () => {
       try {
-        await createInventoryAudit({ category_ids: selectedCategoryIds, notes });
+        const auditNumber = await createInventoryAudit({ category_ids: selectedCategoryIds, notes });
+        const audit = await getInventoryAuditByNumber(auditNumber);
         setSelectedCategoryIds([]);
         setNotes("");
+        setClosedAuditId(null);
+        setLocalAudit(audit);
+        setSelectedAuditId(audit.id);
+        saveQueueRef.current = Promise.resolve();
         toast.success("Conteo abierto");
         router.refresh();
       } catch (error) {
@@ -119,27 +138,59 @@ export function InventoryAuditsView({
     });
   }
 
-  function countItem(item: InventoryAuditItem, mode: "add" | "set", quantity: number) {
-    if (!openAudit) return;
+  function leavePending() {
+    if (!workingAudit) return;
     startTransition(async () => {
       try {
-        await countInventoryAuditItem({
-          audit_id: openAudit.id,
-          item_id: item.id,
-          mode,
-          quantity,
-        });
+        await saveQueueRef.current;
+        setCloseOpen(false);
+        setLocalAudit(null);
+        setSelectedAuditId(null);
         setQuery("");
+        saveQueueRef.current = Promise.resolve();
+        toast.success("Avance guardado");
         router.refresh();
-        window.setTimeout(() => inputRef.current?.focus(), 50);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No se pudo contar producto");
+        toast.error(error instanceof Error ? error.message : "No se pudo guardar avance");
       }
     });
   }
 
+  function countItem(item: InventoryAuditItem, mode: "add" | "set", quantity: number) {
+    if (!workingAudit) return;
+    const auditId = workingAudit.id;
+    const previous = {
+      counted: item.counted,
+      counted_quantity: item.counted_quantity,
+      difference: item.difference,
+    };
+    const optimisticItem = getOptimisticCountItem(item, mode, quantity);
+
+    setLocalAudit((current) => updateAuditItem(current?.id === auditId ? current : workingAudit, optimisticItem));
+    setQuery("");
+    window.setTimeout(() => inputRef.current?.focus(), 50);
+
+    const saveOperation = saveQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const result = await countInventoryAuditItem({
+          audit_id: auditId,
+          item_id: item.id,
+          mode,
+          quantity,
+        });
+        setLocalAudit((current) => mergeCountResult(current?.id === auditId ? current : workingAudit, result));
+      })
+      .catch((error) => {
+        setLocalAudit((current) => updateAuditItem(current?.id === auditId ? current : workingAudit, { ...item, ...previous }));
+        toast.error(error instanceof Error ? error.message : "No se pudo contar producto");
+      });
+
+    saveQueueRef.current = saveOperation;
+  }
+
   function handleScanSubmit() {
-    if (!openAudit) return;
+    if (!workingAudit) return;
     const clean = query.trim().toLowerCase();
     if (!clean) return;
     const exact = sortedItems.find((item) => item.product_code.toLowerCase() === clean);
@@ -152,21 +203,45 @@ export function InventoryAuditsView({
   }
 
   function submitClose(options: CloseOptions) {
-    if (!openAudit) return;
+    if (!workingAudit) return;
     startTransition(async () => {
       try {
+        await saveQueueRef.current;
         const auditNumber = await closeInventoryAudit({
-          audit_id: openAudit.id,
+          audit_id: workingAudit.id,
           apply_inventory: options.applyInventory,
           uncounted_policy: options.uncountedPolicy,
         });
         const audit = await getInventoryAuditByNumber(auditNumber);
         setCloseOpen(false);
+        setClosedAuditId(workingAudit.id);
+        setLocalAudit(null);
+        setSelectedAuditId(null);
         setPrintAudit(audit);
         toast.success(options.applyInventory ? "Conteo cerrado e inventario actualizado" : "Conteo cerrado sin actualizar inventario");
         router.refresh();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "No se pudo cerrar conteo");
+      }
+    });
+  }
+
+  function submitCancel(audit: InventoryAudit) {
+    startTransition(async () => {
+      try {
+        if (workingAudit?.id === audit.id) await saveQueueRef.current;
+        await cancelInventoryAudit({ audit_id: audit.id });
+        setCancelAudit(null);
+        if (workingAudit?.id === audit.id) {
+          setClosedAuditId(audit.id);
+          setLocalAudit(null);
+          setSelectedAuditId(null);
+          setQuery("");
+        }
+        toast.success("Inventario cancelado");
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo cancelar inventario");
       }
     });
   }
@@ -181,34 +256,53 @@ export function InventoryAuditsView({
     });
   }
 
+  function showDetail(auditNumber: string) {
+    startTransition(async () => {
+      try {
+        setDetailAudit(await getInventoryAuditByNumber(auditNumber));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo cargar detalle");
+      }
+    });
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Conteo de inventario</h1>
-          <p className="text-sm text-muted-foreground">Auditorias por categoria con escaneo, cierre y ticket.</p>
+          <p className="text-sm text-muted-foreground">Auditorias simultaneas por categoria, escaneo y ticket.</p>
         </div>
-        {openAudit ? (
-          <Button disabled={pending} type="button" onClick={() => setCloseOpen(true)}>
-            <Save className="h-4 w-4" />
-            Cerrar conteo
-          </Button>
-        ) : null}
       </div>
 
-      {openAudit ? (
+      {workingAudit ? (
         <Card className="motion-surface">
           <CardHeader>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <CardTitle>{openAudit.audit_number}</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">{openAudit.category_names.join(", ")}</p>
+                <CardTitle>{workingAudit.audit_number}</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">{workingAudit.category_names.join(", ")}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <AuditMetric label="Contados" value={`${summary.countedItems}/${summary.totalItems}`} />
-                <AuditMetric label="Piezas" value={`${summary.countedPieces}/${summary.expectedPieces}`} />
-                <AuditMetric label="Sobrantes" value={`+${summary.positiveDifference}`} />
-                <AuditMetric label="Faltantes" value={`-${summary.negativeDifference}`} />
+              <div className="flex flex-col gap-3 lg:items-end">
+                <div className="flex flex-wrap gap-2">
+                  <Button disabled={pending} type="button" variant="destructive" onClick={() => setCancelAudit(workingAudit)}>
+                    <Ban className="h-4 w-4" />
+                    Cancelar inventario
+                  </Button>
+                  <Button disabled={pending} type="button" variant="secondary" onClick={leavePending}>
+                    {pending ? "Guardando..." : "Dejar pendiente"}
+                  </Button>
+                  <Button disabled={pending} type="button" onClick={() => setCloseOpen(true)}>
+                    <Save className="h-4 w-4" />
+                    Cerrar conteo
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <AuditMetric label="Contados" value={`${summary.countedItems}/${summary.totalItems}`} />
+                  <AuditMetric label="Piezas" value={`${summary.countedPieces}/${summary.expectedPieces}`} />
+                  <AuditMetric label="Sobrantes" value={`+${summary.positiveDifference}`} />
+                  <AuditMetric label="Faltantes" value={`-${summary.negativeDifference}`} />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -256,6 +350,8 @@ export function InventoryAuditsView({
               </Button>
             </div>
 
+            <ScannedSummaryPanel items={workingAudit.items ?? []} />
+
             <div className="space-y-4">
               {groupedItems.map((group) => (
                 <section key={group.category} className="rounded-lg border border-border">
@@ -293,27 +389,60 @@ export function InventoryAuditsView({
           </CardContent>
         </Card>
       ) : (
-        <NewAuditPanel
-          categories={categories}
-          notes={notes}
-          pending={pending}
-          selectedCategoryIds={selectedCategoryIds}
-          onNotesChange={setNotes}
-          onStart={startAudit}
-          onToggleCategory={toggleCategory}
-        />
+        <>
+          <NewAuditPanel
+            categories={categories}
+            disabledCategoryIds={reservedCategoryIds}
+            notes={notes}
+            pending={pending}
+            selectedCategoryIds={selectedCategoryIds}
+            onNotesChange={setNotes}
+            onStart={startAudit}
+            onToggleCategory={toggleCategory}
+          />
+          <AuditHistory
+            audits={audits}
+            pending={pending}
+            onContinue={(auditId) => {
+              const audit = openAudits.find((entry) => entry.id === auditId) ?? null;
+              setClosedAuditId(null);
+              setLocalAudit(audit);
+              setQuery("");
+              setSelectedAuditId(auditId);
+              saveQueueRef.current = Promise.resolve();
+            }}
+            onCancel={(audit) => setCancelAudit(audit)}
+            onDetail={(auditNumber) => showDetail(auditNumber)}
+            onReprint={reprint}
+          />
+        </>
       )}
 
-      <AuditHistory audits={audits} pending={pending} onReprint={reprint} />
-
-      {closeOpen && openAudit ? (
+      {closeOpen && workingAudit ? (
         <CloseAuditModal
-          audit={openAudit}
+          audit={workingAudit}
           pending={pending}
           stockChanged={stockChanged}
           summary={summary}
           onCancel={() => setCloseOpen(false)}
           onConfirm={submitClose}
+        />
+      ) : null}
+
+      {cancelAudit ? (
+        <CancelAuditModal
+          audit={cancelAudit}
+          pending={pending}
+          onCancel={() => setCancelAudit(null)}
+          onConfirm={() => submitCancel(cancelAudit)}
+        />
+      ) : null}
+
+      {detailAudit ? (
+        <AuditDetailModal
+          audit={detailAudit}
+          onClose={() => setDetailAudit(null)}
+          onReprint={() => reprint(detailAudit.audit_number)}
         />
       ) : null}
 
@@ -324,6 +453,7 @@ export function InventoryAuditsView({
 
 function NewAuditPanel({
   categories,
+  disabledCategoryIds,
   notes,
   pending,
   selectedCategoryIds,
@@ -332,6 +462,7 @@ function NewAuditPanel({
   onToggleCategory,
 }: {
   categories: CatalogItem[];
+  disabledCategoryIds: Set<string>;
   notes: string;
   pending: boolean;
   selectedCategoryIds: string[];
@@ -347,6 +478,7 @@ function NewAuditPanel({
       <CardContent className="space-y-4">
         <CategoryMultiSearch
           categories={categories}
+          disabledCategoryIds={disabledCategoryIds}
           selectedCategoryIds={selectedCategoryIds}
           onToggleCategory={onToggleCategory}
         />
@@ -372,18 +504,21 @@ function NewAuditPanel({
 
 function CategoryMultiSearch({
   categories,
+  disabledCategoryIds,
   selectedCategoryIds,
   onToggleCategory,
 }: {
   categories: CatalogItem[];
+  disabledCategoryIds: Set<string>;
   selectedCategoryIds: string[];
   onToggleCategory: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const selected = categories.filter((category) => selectedCategoryIds.includes(category.id));
-  const available = categories.filter((category) => !selectedCategoryIds.includes(category.id));
+  const available = categories.filter((category) => !selectedCategoryIds.includes(category.id) && !disabledCategoryIds.has(category.id));
   const filtered = available.filter((category) => category.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const reservedCount = categories.filter((category) => disabledCategoryIds.has(category.id)).length;
 
   function select(id: string) {
     onToggleCategory(id);
@@ -470,18 +605,86 @@ function CategoryMultiSearch({
           ) : null}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">{selected.length} seleccionadas.</p>
+      <p className="text-xs text-muted-foreground">
+        {selected.length} seleccionadas. {reservedCount > 0 ? `${reservedCount} en conteos abiertos.` : null}
+      </p>
     </div>
   );
 }
 
-function AuditHistory({ audits, pending, onReprint }: { audits: InventoryAudit[]; pending: boolean; onReprint: (auditNumber: string) => void }) {
+function ScannedSummaryPanel({ items }: { items: InventoryAuditItem[] }) {
+  const countedItems = items.filter((item) => item.counted && item.counted_quantity !== null);
+  const differenceItems = countedItems.filter((item) => item.difference !== 0);
+
+  return (
+    <details className="rounded-lg border border-border bg-muted/25 p-3" open>
+      <summary className="cursor-pointer text-sm font-semibold outline-none transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring">
+        Detalle capturado ({countedItems.length})
+      </summary>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <AuditMetric label="Escaneados" value={`${countedItems.length}/${items.length}`} />
+        <AuditMetric label="Con diferencia" value={`${differenceItems.length}`} />
+        <AuditMetric label="Sobrantes" value={`+${differenceItems.reduce((total, item) => total + Math.max(item.difference, 0), 0)}`} />
+        <AuditMetric label="Faltantes" value={`-${differenceItems.reduce((total, item) => total + Math.abs(Math.min(item.difference, 0)), 0)}`} />
+      </div>
+      {countedItems.length > 0 ? (
+        <div className="mt-3 max-h-72 overflow-auto rounded-md border border-border bg-card">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 font-medium">Producto</th>
+                <th className="px-3 py-2 font-medium">Stock</th>
+                <th className="px-3 py-2 font-medium">Contado</th>
+                <th className="px-3 py-2 font-medium">Dif.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {countedItems.map((item) => (
+                <tr key={item.id} className="border-t border-border">
+                  <td className="min-w-60 px-3 py-2">
+                    <p className="font-medium">{item.product_name}</p>
+                    <p className="text-xs text-muted-foreground">{item.product_code}</p>
+                  </td>
+                  <td className="px-3 py-2">{item.initial_stock}</td>
+                  <td className="px-3 py-2">{item.counted_quantity ?? 0}</td>
+                  <td className="px-3 py-2">
+                    <Badge variant={item.difference < 0 ? "destructive" : item.difference > 0 ? "warning" : "success"}>
+                      {item.difference > 0 ? `+${item.difference}` : item.difference}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-muted-foreground">Sin productos capturados.</p>
+      )}
+    </details>
+  );
+}
+
+function AuditHistory({
+  audits,
+  pending,
+  onContinue,
+  onCancel,
+  onDetail,
+  onReprint,
+}: {
+  audits: InventoryAudit[];
+  pending: boolean;
+  onContinue: (auditId: string) => void;
+  onCancel: (audit: InventoryAudit) => void;
+  onDetail: (auditNumber: string) => void;
+  onReprint: (auditNumber: string) => void;
+}) {
   if (audits.length === 0) {
     return (
       <EmptyState
         icon={ListChecks}
-        title="Sin conteos"
-        description="Abre una auditoria por categoria para empezar a comparar stock fisico contra sistema."
+        title="Sin auditorias"
+        description="Abre una auditoria por categoria para comenzar el conteo."
       />
     );
   }
@@ -489,7 +692,7 @@ function AuditHistory({ audits, pending, onReprint }: { audits: InventoryAudit[]
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Historial</CardTitle>
+        <CardTitle>Auditorias</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
@@ -501,7 +704,7 @@ function AuditHistory({ audits, pending, onReprint }: { audits: InventoryAudit[]
                 <th className="px-4 py-2 font-medium">Categorias</th>
                 <th className="px-4 py-2 font-medium">Fecha</th>
                 <th className="px-4 py-2 font-medium">Resumen</th>
-                <th className="px-4 py-2 text-right font-medium">Ticket</th>
+                <th className="px-4 py-2 text-right font-medium">Accion</th>
               </tr>
             </thead>
             <tbody>
@@ -509,8 +712,8 @@ function AuditHistory({ audits, pending, onReprint }: { audits: InventoryAudit[]
                 <tr key={audit.id} className="border-t border-border">
                   <td className="px-4 py-3 font-mono text-xs">{audit.audit_number}</td>
                   <td className="px-4 py-3">
-                    <Badge variant={audit.status === "open" ? "warning" : audit.apply_inventory ? "success" : "secondary"}>
-                      {audit.status === "open" ? "Abierto" : audit.apply_inventory ? "Aplicado" : "Cerrado"}
+                    <Badge variant={audit.status === "open" ? "warning" : audit.status === "canceled" ? "destructive" : audit.apply_inventory ? "success" : "secondary"}>
+                      {audit.status === "open" ? "Abierto" : audit.status === "canceled" ? "Cancelado" : audit.apply_inventory ? "Aplicado" : "Cerrado"}
                     </Badge>
                   </td>
                   <td className="max-w-xs px-4 py-3">
@@ -521,17 +724,43 @@ function AuditHistory({ audits, pending, onReprint }: { audits: InventoryAudit[]
                     {audit.counted_items}/{audit.total_items} · +{audit.positive_difference} / -{audit.negative_difference}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      aria-label="Imprimir ticket"
-                      disabled={pending}
-                      size="icon"
-                      title="Imprimir ticket"
-                      type="button"
-                      variant="ghost"
-                      onClick={() => onReprint(audit.audit_number)}
-                    >
-                      <Printer className="h-4 w-4" />
-                    </Button>
+                    {audit.status === "open" ? (
+                      <div className="flex justify-end gap-2">
+                        <Button disabled={pending} type="button" variant="outline" onClick={() => onContinue(audit.id)}>
+                          Volver al inventario
+                        </Button>
+                        <Button disabled={pending} size="icon" title="Cancelar inventario" type="button" variant="destructive" onClick={() => onCancel(audit)}>
+                          <Ban className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : audit.status === "closed" ? (
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          aria-label="Ver detalle"
+                          disabled={pending}
+                          size="icon"
+                          title="Ver detalle"
+                          type="button"
+                          variant="ghost"
+                          onClick={() => onDetail(audit.audit_number)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          aria-label="Imprimir ticket"
+                          disabled={pending}
+                          size="icon"
+                          title="Imprimir ticket"
+                          type="button"
+                          variant="ghost"
+                          onClick={() => onReprint(audit.audit_number)}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Sin accion</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -688,6 +917,133 @@ function CloseAuditModal({
   );
 }
 
+function CancelAuditModal({
+  audit,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  audit: InventoryAudit;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const summary = summarizeItems(audit.items ?? []);
+
+  return (
+    <ModalOverlay role="alertdialog">
+      <div className="animate-pop w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-lg">
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold">Cancelar {audit.audit_number}</h2>
+          <p className="text-sm text-muted-foreground">
+            Esto cancelara el inventario abierto y conservara registro. No actualiza stock.
+          </p>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-border p-3 text-sm">
+          <SummaryRow label="Productos" value={`${summary.countedItems}/${summary.totalItems}`} />
+          <SummaryRow label="Piezas contadas" value={`${summary.countedPieces}`} />
+          <SummaryRow label="Sobrantes" value={`+${summary.positiveDifference}`} />
+          <SummaryRow label="Faltantes" value={`-${summary.negativeDifference}`} />
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button disabled={pending} type="button" variant="secondary" onClick={onCancel}>
+            Volver
+          </Button>
+          <Button disabled={pending} type="button" variant="destructive" onClick={onConfirm}>
+            <Ban className="h-4 w-4" />
+            {pending ? "Cancelando..." : "Cancelar inventario"}
+          </Button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+function AuditDetailModal({
+  audit,
+  onClose,
+  onReprint,
+}: {
+  audit: InventoryAudit;
+  onClose: () => void;
+  onReprint: () => void;
+}) {
+  const summary = summarizeItems(audit.items ?? []);
+  const countedItems = (audit.items ?? []).filter((item) => item.counted && item.counted_quantity !== null);
+
+  return (
+    <ModalOverlay role="dialog">
+      <div className="animate-pop flex max-h-[86vh] w-full max-w-3xl flex-col rounded-lg border border-border bg-card shadow-lg">
+        <div className="flex items-start justify-between gap-3 border-b border-border p-5">
+          <div>
+            <h2 className="text-lg font-semibold">Detalle {audit.audit_number}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{audit.category_names.join(", ")}</p>
+          </div>
+          <Button aria-label="Cerrar detalle" size="icon" type="button" variant="ghost" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="space-y-4 overflow-auto p-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <AuditMetric label="Productos" value={`${summary.countedItems}/${summary.totalItems}`} />
+            <AuditMetric label="Piezas" value={`${summary.countedPieces}/${summary.expectedPieces}`} />
+            <AuditMetric label="Sobrantes" value={`+${summary.positiveDifference}`} />
+            <AuditMetric label="Faltantes" value={`-${summary.negativeDifference}`} />
+          </div>
+          <div className="rounded-md border border-border">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+              <h3 className="text-sm font-semibold">Productos capturados</h3>
+              <Badge variant="secondary">{countedItems.length}</Badge>
+            </div>
+            {countedItems.length > 0 ? (
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-muted text-left text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Producto</th>
+                      <th className="px-3 py-2 font-medium">Stock</th>
+                      <th className="px-3 py-2 font-medium">Contado</th>
+                      <th className="px-3 py-2 font-medium">Dif.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {countedItems.map((item) => (
+                      <tr key={item.id} className="border-t border-border">
+                        <td className="min-w-64 px-3 py-2">
+                          <p className="font-medium">{item.product_name}</p>
+                          <p className="text-xs text-muted-foreground">{[item.product_code, item.brand, item.model].filter(Boolean).join(" · ")}</p>
+                        </td>
+                        <td className="px-3 py-2">{item.initial_stock}</td>
+                        <td className="px-3 py-2">{item.counted_quantity ?? 0}</td>
+                        <td className="px-3 py-2">
+                          <Badge variant={item.difference < 0 ? "destructive" : item.difference > 0 ? "warning" : "success"}>
+                            {item.difference > 0 ? `+${item.difference}` : item.difference}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="p-3 text-sm text-muted-foreground">Sin productos capturados.</p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-2 border-t border-border p-5 sm:flex-row sm:justify-end">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cerrar
+          </Button>
+          <Button type="button" onClick={onReprint}>
+            <Printer className="h-4 w-4" />
+            Imprimir ticket
+          </Button>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
 function InventoryAuditReceiptPrintArea({ audit, context }: { audit: InventoryAudit; context: ReceiptContext }) {
   const summary = summarizeItems(audit.items ?? []);
   const user = audit.users?.full_name || audit.users?.email || context.user.full_name || context.user.email;
@@ -779,6 +1135,40 @@ function ReceiptLine({ label, value }: { label: string; value: string }) {
       <span>{value}</span>
     </div>
   );
+}
+
+function getOptimisticCountItem(item: InventoryAuditItem, mode: "add" | "set", quantity: number) {
+  const countedQuantity = mode === "add" ? (item.counted_quantity ?? 0) + quantity : quantity;
+  return {
+    ...item,
+    counted: true,
+    counted_quantity: countedQuantity,
+    difference: countedQuantity - item.initial_stock,
+  };
+}
+
+function updateAuditItem(audit: InventoryAudit | null, item: InventoryAuditItem) {
+  if (!audit) return audit;
+  return {
+    ...audit,
+    items: (audit.items ?? []).map((current) => (
+      current.id === item.id ? { ...current, ...item, products: item.products ?? current.products } : current
+    )),
+  };
+}
+
+function mergeCountResult(audit: InventoryAudit | null, result: CountInventoryAuditItemResult) {
+  const nextAudit = updateAuditItem(audit, result.item);
+  if (!nextAudit) return nextAudit;
+  return {
+    ...nextAudit,
+    total_items: result.summary.totalItems,
+    counted_items: result.summary.countedItems,
+    expected_pieces: result.summary.expectedPieces,
+    counted_pieces: result.summary.countedPieces,
+    positive_difference: result.summary.positiveDifference,
+    negative_difference: result.summary.negativeDifference,
+  };
 }
 
 function summarizeItems(items: InventoryAuditItem[]) {

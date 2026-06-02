@@ -18,6 +18,11 @@ export const closeInventoryAuditSchema = z.object({
   uncounted_policy: z.enum(["ignore", "zero"]).default("ignore"),
 });
 
+export const cancelInventoryAuditSchema = z.object({
+  audit_id: z.string().uuid(),
+});
+
 export type CreateInventoryAuditValues = z.infer<typeof createInventoryAuditSchema>;
 export type CountInventoryAuditItemValues = z.infer<typeof countInventoryAuditItemSchema>;
 export type CloseInventoryAuditValues = z.infer<typeof closeInventoryAuditSchema>;
+export type CancelInventoryAuditValues = z.infer<typeof cancelInventoryAuditSchema>;

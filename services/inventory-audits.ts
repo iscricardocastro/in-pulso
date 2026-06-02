@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  cancelInventoryAuditSchema,
   closeInventoryAuditSchema,
   countInventoryAuditItemSchema,
   createInventoryAuditSchema,
@@ -9,6 +10,19 @@ import {
 import { productBrand, productCategory, productModel } from "@/lib/catalog-display";
 import { requireUserContext } from "@/services/context";
 import type { CatalogItem, InventoryAudit, InventoryAuditItem, Product } from "@/types/database";
+
+export type InventoryAuditSummary = {
+  totalItems: number;
+  countedItems: number;
+  expectedPieces: number;
+  countedPieces: number;
+  positiveDifference: number;
+  negativeDifference: number;
+};
+export type CountInventoryAuditItemResult = {
+  item: InventoryAuditItem;
+  summary: InventoryAuditSummary;
+};
 
 export async function getInventoryAudits(limit = 50) {
   const { supabase } = await requireUserContext();
@@ -22,18 +36,16 @@ export async function getInventoryAudits(limit = 50) {
   return (data ?? []) as InventoryAudit[];
 }
 
-export async function getOpenInventoryAudit() {
+export async function getOpenInventoryAudits() {
   const { supabase } = await requireUserContext();
   const { data, error } = await supabase
     .from("inventory_audits")
     .select("*, users(full_name, email), items:inventory_audit_items(*, products(id, name, internal_code, current_stock))")
     .eq("status", "open")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data as InventoryAudit | null;
+  return (data ?? []) as InventoryAudit[];
 }
 
 export async function getInventoryAuditByNumber(auditNumber: string) {
@@ -56,12 +68,16 @@ export async function createInventoryAudit(input: unknown) {
   const { supabase, profile } = await requireUserContext();
   const values = createInventoryAuditSchema.parse(input);
 
-  const { count: openCount, error: openError } = await supabase
+  const { data: overlappingAudits, error: openError } = await supabase
     .from("inventory_audits")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "open");
+    .select("audit_number, category_names")
+    .eq("status", "open")
+    .overlaps("category_ids", values.category_ids);
   if (openError) throw new Error(openError.message);
-  if ((openCount ?? 0) > 0) throw new Error("Ya hay un conteo abierto");
+  if ((overlappingAudits ?? []).length > 0) {
+    const audit = overlappingAudits[0];
+    throw new Error(`Categoria ya en conteo abierto (${audit.audit_number}: ${audit.category_names.join(", ")})`);
+  }
 
   const { data: categories, error: categoriesError } = await supabase
     .from("catalog_items")
@@ -128,176 +144,48 @@ export async function createInventoryAudit(input: unknown) {
 export async function countInventoryAuditItem(input: unknown) {
   const { supabase } = await requireUserContext();
   const values = countInventoryAuditItemSchema.parse(input);
-  const audit = await requireOpenAudit(values.audit_id);
-  const item = audit.items?.find((entry) => entry.id === values.item_id);
-  if (!item) throw new Error("Producto fuera del conteo");
 
-  const previous = item.counted_quantity ?? 0;
-  const countedQuantity = values.mode === "add" ? previous + values.quantity : values.quantity;
-  const difference = countedQuantity - item.initial_stock;
+  const { data, error } = await supabase.rpc("count_inventory_audit_item", {
+    p_audit_id: values.audit_id,
+    p_item_id: values.item_id,
+    p_mode: values.mode,
+    p_quantity: values.quantity,
+  });
+  if (error) throwSupabaseError(error, "No se pudo contar producto");
 
-  const { error } = await supabase
-    .from("inventory_audit_items")
-    .update({
-      counted: true,
-      counted_quantity: countedQuantity,
-      difference,
-    })
-    .eq("id", values.item_id)
-    .eq("audit_id", values.audit_id);
-  if (error) throw new Error(error.message);
-
-  await refreshAuditSummary(values.audit_id);
-  revalidateInventoryAuditPaths();
+  return data as CountInventoryAuditItemResult;
 }
 
 export async function closeInventoryAudit(input: unknown) {
   const { supabase } = await requireUserContext();
   const values = closeInventoryAuditSchema.parse(input);
-  const audit = await requireOpenAudit(values.audit_id);
-  const items = audit.items ?? [];
 
-  if (values.uncounted_policy === "zero") {
-    const pending = items.filter((item) => !item.counted);
-    if (pending.length > 0) {
-      for (const item of pending) {
-        const { error } = await supabase
-          .from("inventory_audit_items")
-          .update({
-            counted: true,
-            counted_quantity: 0,
-            difference: -item.initial_stock,
-          })
-          .eq("id", item.id)
-          .eq("audit_id", values.audit_id);
-        if (error) throwSupabaseError(error, "No se pudieron marcar pendientes como 0");
-      }
-    }
-  }
-
-  const latestAudit = await requireOpenAudit(values.audit_id);
-  const latestItems = latestAudit.items ?? [];
-  const productIds = latestItems.map((item) => item.product_id);
-  const currentStockByProduct = await getCurrentStockByProduct(productIds);
-
-  for (const item of latestItems) {
-    const closingStock = currentStockByProduct.get(item.product_id) ?? item.initial_stock;
-    const { error } = await supabase
-      .from("inventory_audit_items")
-      .update({ closing_stock: closingStock })
-      .eq("id", item.id);
-    if (error) throwSupabaseError(error, "No se pudo guardar stock de cierre");
-
-    if (!values.apply_inventory || !item.counted || item.counted_quantity === null) continue;
-    if (item.counted_quantity === closingStock) continue;
-
-    const { error: movementError } = await supabase.rpc("record_inventory_movement", {
-      p_product_id: item.product_id,
-      p_type: "adjustment",
-      p_quantity: item.counted_quantity,
-      p_comment: `Conteo ${latestAudit.audit_number}: ${item.product_name}, stock ${closingStock} -> ${item.counted_quantity}`,
-    });
-    if (movementError) throwSupabaseError(movementError, "No se pudo aplicar ajuste de inventario");
-  }
-
-  const summary = summarizeItems(latestItems);
-  const { error: auditError } = await supabase
-    .from("inventory_audits")
-    .update({
-      status: "closed",
-      apply_inventory: values.apply_inventory,
-      uncounted_policy: values.uncounted_policy,
-      total_items: summary.totalItems,
-      counted_items: summary.countedItems,
-      expected_pieces: summary.expectedPieces,
-      counted_pieces: summary.countedPieces,
-      positive_difference: summary.positiveDifference,
-      negative_difference: summary.negativeDifference,
-      closed_at: new Date().toISOString(),
-    })
-    .eq("id", values.audit_id);
-  if (auditError) throwSupabaseError(auditError, "No se pudo cerrar conteo");
+  const { data: auditNumber, error } = await supabase.rpc("close_inventory_audit", {
+    p_audit_id: values.audit_id,
+    p_apply_inventory: values.apply_inventory,
+    p_uncounted_policy: values.uncounted_policy,
+  });
+  if (error) throwSupabaseError(error, "No se pudo cerrar conteo");
 
   revalidateInventoryAuditPaths();
-  return latestAudit.audit_number;
+  return auditNumber as string;
 }
 
-async function requireOpenAudit(auditId: string) {
+export async function cancelInventoryAudit(input: unknown) {
   const { supabase } = await requireUserContext();
-  const { data, error } = await supabase
-    .from("inventory_audits")
-    .select("*, items:inventory_audit_items(*)")
-    .eq("id", auditId)
-    .eq("status", "open")
-    .single();
-  if (error) throw new Error(error.message);
-  return data as InventoryAudit;
-}
+  const values = cancelInventoryAuditSchema.parse(input);
 
-async function getCurrentStockByProduct(productIds: string[]) {
-  const { supabase } = await requireUserContext();
-  const stockByProduct = new Map<string, number>();
-  const uniqueIds = Array.from(new Set(productIds));
-
-  for (const ids of chunk(uniqueIds, 50)) {
-    const { data: products, error } = await supabase
-      .from("products")
-      .select("id, current_stock")
-      .in("id", ids);
-    if (error) throwSupabaseError(error, "No se pudo leer stock actual");
-    (products ?? []).forEach((product) => stockByProduct.set(product.id, Number(product.current_stock ?? 0)));
-  }
-
-  return stockByProduct;
-}
-
-async function refreshAuditSummary(auditId: string) {
-  const { supabase } = await requireUserContext();
-  const { data, error } = await supabase
-    .from("inventory_audit_items")
-    .select("*")
-    .eq("audit_id", auditId);
-  if (error) throw new Error(error.message);
-
-  const summary = summarizeItems((data ?? []) as InventoryAuditItem[]);
-  const { error: updateError } = await supabase
+  const { error } = await supabase
     .from("inventory_audits")
     .update({
-      total_items: summary.totalItems,
-      counted_items: summary.countedItems,
-      expected_pieces: summary.expectedPieces,
-      counted_pieces: summary.countedPieces,
-      positive_difference: summary.positiveDifference,
-      negative_difference: summary.negativeDifference,
+      status: "canceled",
+      closed_at: new Date().toISOString(),
     })
-    .eq("id", auditId);
-  if (updateError) throw new Error(updateError.message);
-}
+    .eq("id", values.audit_id)
+    .eq("status", "open");
+  if (error) throwSupabaseError(error, "No se pudo cancelar inventario");
 
-function summarizeItems(items: InventoryAuditItem[]) {
-  return items.reduce(
-    (summary, item) => {
-      const counted = item.counted && item.counted_quantity !== null;
-      const difference = counted ? (item.counted_quantity ?? 0) - item.initial_stock : 0;
-      summary.totalItems += 1;
-      summary.expectedPieces += item.initial_stock;
-      if (counted) {
-        summary.countedItems += 1;
-        summary.countedPieces += item.counted_quantity ?? 0;
-        if (difference > 0) summary.positiveDifference += difference;
-        if (difference < 0) summary.negativeDifference += Math.abs(difference);
-      }
-      return summary;
-    },
-    {
-      totalItems: 0,
-      countedItems: 0,
-      expectedPieces: 0,
-      countedPieces: 0,
-      positiveDifference: 0,
-      negativeDifference: 0,
-    },
-  );
+  revalidateInventoryAuditPaths();
 }
 
 function sortCategories(categories: CatalogItem[]) {
@@ -309,14 +197,6 @@ function revalidateInventoryAuditPaths() {
   revalidatePath("/movements");
   revalidatePath("/products");
   revalidatePath("/dashboard");
-}
-
-function chunk<T>(items: T[], size: number) {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
 }
 
 function throwSupabaseError(error: { code?: string; details?: string; hint?: string; message: string }, context: string): never {
