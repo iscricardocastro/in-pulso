@@ -1,7 +1,8 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Save, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, FileSpreadsheet, Save, Settings2, Upload } from "lucide-react";
+import Link from "next/link";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ export function ImportView({
   importTemplates: ProductImportTemplate[];
 }) {
   const workflow = useImportWorkflow(categories, propertyDefinitions, importTemplates);
+  const baseMappingTargets = workflow.mappingTargets.filter((target) => !target.propertyKey);
+  const templateMappingTargets = workflow.mappingTargets.filter((target) => target.propertyKey);
+  const unmappedRequiredLabels = workflow.unmappedRequiredFields.map((field) => field.label).join(", ");
   const previewColumns = useMemo<ColumnDef<PreviewRow>[]>(
     () => [
       {
@@ -187,6 +191,79 @@ export function ImportView({
 
       {workflow.sheets.length > 0 ? (
         <>
+          <Card className={workflow.isTemplateReadyForImport ? "border-emerald-200 bg-emerald-50/40" : "border-amber-200 bg-amber-50/50"}>
+            <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle>Antes de importar</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Verifica que tu plantilla de producto tenga los campos que necesitas. Estos campos aparecen abajo para mapear columnas.
+                </p>
+              </div>
+              <Button asChild variant="outline">
+                <Link href="/catalogs">
+                  <Settings2 className="h-4 w-4" />
+                  Editar plantilla
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {workflow.isTemplateReadyForImport ? (
+                  <Badge variant="success">Plantilla lista</Badge>
+                ) : (
+                  <Badge variant="warning">Faltan campos requeridos por mapear</Badge>
+                )}
+                {workflow.unmappedRequiredFields.length > 0 ? (
+                  <span className="text-sm text-amber-700">Mapea: {unmappedRequiredLabels}</span>
+                ) : null}
+              </div>
+
+              {propertyDefinitions.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {propertyDefinitions.map((definition) => {
+                    const isMapped = Boolean(workflow.mapping[`property:${definition.key}`]);
+                    const needsMapping = definition.required && !isMapped;
+                    return (
+                      <div
+                        key={definition.id}
+                        className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{definition.label}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <Badge variant={definition.required ? "warning" : "secondary"}>
+                              {definition.required ? "Requerido" : "Opcional"}
+                            </Badge>
+                            <Badge variant="secondary">{propertyTypeLabel(definition.type)}</Badge>
+                          </div>
+                        </div>
+                        {needsMapping ? (
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                        ) : definition.required ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3 rounded-md border border-dashed border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">Sin plantilla configurada</p>
+                    <p className="text-sm text-muted-foreground">Crea campos si tu inventario necesita datos propios como color, talla o serie.</p>
+                  </div>
+                  <Button asChild variant="outline">
+                    <Link href="/catalogs">
+                      <Settings2 className="h-4 w-4" />
+                      Crear plantilla
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Hoja y plantilla</CardTitle>
@@ -247,21 +324,37 @@ export function ImportView({
             <CardHeader>
               <CardTitle>Mapeo de columnas</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-              {workflow.mappingTargets.map((target) => (
-                <div key={target.key} className="space-y-2">
-                  <Label>{target.label}</Label>
-                  <SearchableSelect
-                    options={[
-                      { value: "", label: "No mapear" },
-                      ...workflow.columns.map((column) => ({ value: column.key, label: column.label })),
-                    ]}
-                    placeholder="Buscar columna"
-                    value={workflow.mapping[target.key] ?? ""}
-                    onChange={(value) => workflow.handleMappingChange(target.key, value)}
-                  />
+            <CardContent className="space-y-6">
+              <MappingGroup
+                columns={workflow.columns}
+                mapping={workflow.mapping}
+                title="Campos base"
+                targets={baseMappingTargets}
+                onChange={workflow.handleMappingChange}
+              />
+              {templateMappingTargets.length > 0 ? (
+                <MappingGroup
+                  columns={workflow.columns}
+                  mapping={workflow.mapping}
+                  propertyDefinitions={propertyDefinitions}
+                  title="Campos de plantilla"
+                  targets={templateMappingTargets}
+                  onChange={workflow.handleMappingChange}
+                />
+              ) : (
+                <div className="flex flex-col gap-3 rounded-md border border-dashed border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">Sin plantilla configurada</p>
+                    <p className="text-sm text-muted-foreground">Crea una plantilla para mapear campos propios del negocio.</p>
+                  </div>
+                  <Button asChild variant="outline">
+                    <Link href="/catalogs">
+                      <Settings2 className="h-4 w-4" />
+                      Crear plantilla
+                    </Link>
+                  </Button>
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
 
@@ -288,10 +381,15 @@ export function ImportView({
             header={
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>Preview antes de importar</CardTitle>
-                <Button disabled={workflow.pending || workflow.importableRows.length === 0} type="button" onClick={workflow.runImport}>
-                  <Upload className="h-4 w-4" />
-                  {workflow.pending ? "Importando..." : "Importar filas importables"}
-                </Button>
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <Button disabled={workflow.pending || workflow.importableRows.length === 0 || !workflow.isTemplateReadyForImport} type="button" onClick={workflow.runImport}>
+                    <Upload className="h-4 w-4" />
+                    {workflow.pending ? "Importando..." : "Importar filas importables"}
+                  </Button>
+                  {!workflow.isTemplateReadyForImport ? (
+                    <p className="text-xs text-amber-700">Mapea: {unmappedRequiredLabels}</p>
+                  ) : null}
+                </div>
               </div>
             }
           />
@@ -299,6 +397,65 @@ export function ImportView({
       ) : null}
     </div>
   );
+}
+
+function MappingGroup({
+  columns,
+  mapping,
+  onChange,
+  propertyDefinitions = [],
+  targets,
+  title,
+}: {
+  columns: { key: string; label: string }[];
+  mapping: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+  propertyDefinitions?: ProductPropertyDefinition[];
+  targets: { key: string; label: string; propertyKey?: string }[];
+  title: string;
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+        {targets.map((target) => {
+          const definition = propertyDefinitions.find((entry) => entry.key === target.propertyKey);
+          const required = Boolean(definition?.required);
+          const mapped = Boolean(mapping[target.key]);
+          return (
+            <div key={target.key} className="space-y-2">
+              <Label className="flex items-center justify-between gap-2">
+                <span>{target.label}</span>
+                {required ? (
+                  <Badge variant={mapped ? "success" : "warning"}>{mapped ? "Listo" : "Requerido"}</Badge>
+                ) : null}
+              </Label>
+              <SearchableSelect
+                options={[
+                  { value: "", label: "No mapear" },
+                  ...columns.map((column) => ({ value: column.key, label: column.label })),
+                ]}
+                placeholder="Buscar columna"
+                value={mapping[target.key] ?? ""}
+                onChange={(value) => onChange(target.key, value)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function propertyTypeLabel(type: ProductPropertyDefinition["type"]) {
+  const labels: Record<ProductPropertyDefinition["type"], string> = {
+    boolean: "Si/No",
+    date: "Fecha",
+    number: "Numero",
+    option: "Opcion",
+    text: "Texto",
+  };
+  return labels[type];
 }
 
 function StatusCard({ label, value, ok, danger }: { label: string; value: number; ok?: boolean; danger?: boolean }) {

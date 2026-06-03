@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { SupplierForm } from "@/features/suppliers/supplier-form";
 import { useFormReveal } from "@/hooks/use-form-reveal";
+import { slugKey } from "@/lib/slug";
 import { deleteCatalogItem, upsertCatalogItem } from "@/services/catalogs";
 import {
   createProductPropertyOption,
@@ -405,7 +406,7 @@ export function CatalogsView({
             {isSupplierSection
               ? "Alta y edicion de proveedores usados por productos y ordenes."
               : isProductTemplateSection
-                ? "Define campos variables que aparecen en productos e importacion."
+                ? "Estos campos controlan productos e importacion. Si agregas un campo requerido, importacion pedira mapearlo."
                 : section === "payment_method"
                   ? "Metodos reutilizables para registrar pagos de pedidos."
                   : "Alta y edicion de proveedores usados por productos y ordenes."}
@@ -443,7 +444,7 @@ export function CatalogsView({
                       setPropertyForm((current) => ({
                         ...current,
                         label,
-                        key: current.key || slugKey(label),
+                        key: current.key || slugKey(label, { prefixNumber: true }),
                       }));
                     }}
                   />
@@ -452,7 +453,7 @@ export function CatalogsView({
                   <Label>Clave</Label>
                   <Input
                     value={propertyForm.key}
-                    onChange={(event) => setPropertyForm((current) => ({ ...current, key: slugKey(event.target.value) }))}
+                    onChange={(event) => setPropertyForm((current) => ({ ...current, key: slugKey(event.target.value, { prefixNumber: true }) }))}
                   />
                 </div>
                 <div className="space-y-2">
@@ -511,6 +512,16 @@ export function CatalogsView({
 
       {isProductTemplateSection ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+          <Card className="xl:col-span-2">
+            <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium">Plantilla usada en productos e importacion</p>
+                <p className="text-sm text-muted-foreground">
+                  Agrega solo campos que el negocio necesita. Los campos requeridos deben mapearse al importar.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
           <DataTable
             columns={propertyColumns}
             data={productPropertyDefinitions}
@@ -568,14 +579,4 @@ export function CatalogsView({
       )}
     </div>
   );
-}
-
-function slugKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .replace(/^[0-9]/, "p_$&");
 }

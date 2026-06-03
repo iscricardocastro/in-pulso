@@ -1,5 +1,6 @@
 import { editableNumericFields, separatorWords } from "@/features/import/constants";
 import type { Cell, ImportColumn, MappingTarget, PreviewRow, ProductDraft } from "@/features/import/types";
+import { isInvalidNumberValue, normalizeText, parseNumberValue } from "@/lib/value-parsing";
 import type { ProductPropertyDefinition } from "@/types/database";
 
 export function getPreviewStatus(row: PreviewRow) {
@@ -61,7 +62,7 @@ export function applyEditedRows(rows: PreviewRow[], editedRows: Record<number, P
     if (!hasProductName(product)) errors.push("Producto sin nombre");
     for (const [key, label] of editableNumericFields) {
       const value = product[key];
-      if (isInvalidNumber(value) || (toNumber(value) ?? 0) < 0) {
+      if (isInvalidNumberValue(value) || (parseNumberValue(value) ?? 0) < 0) {
         warnings.push(`Edicion invalida: ${label} no se importara`);
       }
     }
@@ -83,7 +84,7 @@ export function sanitizeImportProduct(product: ProductDraft) {
   const sanitized = { ...product };
   for (const [key] of editableNumericFields) {
     const value = sanitized[key];
-    if (isInvalidNumber(value) || (toNumber(value) ?? 0) < 0) {
+    if (isInvalidNumberValue(value) || (parseNumberValue(value) ?? 0) < 0) {
       delete sanitized[key];
     }
   }
@@ -92,11 +93,6 @@ export function sanitizeImportProduct(product: ProductDraft) {
 
 export function parseCsv(text: string): Cell[][] {
   return text.split(/\r?\n/).filter(Boolean).map(splitCsvLine);
-}
-
-export function normalizeText(value: unknown) {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return String(value ?? "").trim();
 }
 
 function toPreviewRow(
@@ -122,14 +118,14 @@ function toPreviewRow(
   const model = normalizeText(properties.model);
   const category = normalizeText(properties.category);
   const variant = normalizeText(properties.variant);
-  const sales = toNumber(raw.sales);
-  const initialStock = toNumber(raw.initial_stock);
-  const explicitCurrent = toNumber(raw.current_stock);
+  const sales = parseNumberValue(raw.sales);
+  const initialStock = parseNumberValue(raw.initial_stock);
+  const explicitCurrent = parseNumberValue(raw.current_stock);
   const currentStock = explicitCurrent ?? Math.max(0, (initialStock ?? 0) - (sales ?? 0));
-  const salePrice = toNumber(raw.sale_price);
-  const suggestedPrice = toNumber(raw.suggested_price);
-  const cost = toNumber(raw.cost) ?? 0;
-  const minimumStock = toNumber(raw.minimum_stock) ?? 0;
+  const salePrice = parseNumberValue(raw.sale_price);
+  const suggestedPrice = parseNumberValue(raw.suggested_price);
+  const cost = parseNumberValue(raw.cost) ?? 0;
+  const minimumStock = parseNumberValue(raw.minimum_stock) ?? 0;
   const explicitName = normalizeText(raw.name);
   const name = explicitName || [brand, model, variant].filter(Boolean).join(" ") || [category, model].filter(Boolean).join(" ");
   const errors: string[] = [];
@@ -141,10 +137,10 @@ function toPreviewRow(
       errors.push(`${definition.label} requerido`);
     }
   }
-  if (isInvalidNumber(raw.cost) || cost < 0) warnings.push("Costo invalido: no se importara");
-  if (isInvalidNumber(raw.sale_price) || (salePrice ?? 0) < 0) warnings.push("Precio venta invalido: no se importara");
-  if (isInvalidNumber(raw.suggested_price) || (suggestedPrice ?? 0) < 0) warnings.push("Precio sugerido invalido: no se importara");
-  if ([raw.initial_stock, raw.sales, raw.current_stock, raw.minimum_stock].some((value) => isInvalidNumber(value) || (toNumber(value) ?? 0) < 0)) {
+  if (isInvalidNumberValue(raw.cost) || cost < 0) warnings.push("Costo invalido: no se importara");
+  if (isInvalidNumberValue(raw.sale_price) || (salePrice ?? 0) < 0) warnings.push("Precio venta invalido: no se importara");
+  if (isInvalidNumberValue(raw.suggested_price) || (suggestedPrice ?? 0) < 0) warnings.push("Precio sugerido invalido: no se importara");
+  if ([raw.initial_stock, raw.sales, raw.current_stock, raw.minimum_stock].some((value) => isInvalidNumberValue(value) || (parseNumberValue(value) ?? 0) < 0)) {
     warnings.push("Stock negativo o invalido: no se importara");
   }
 
@@ -159,13 +155,13 @@ function toPreviewRow(
       model,
       category,
       variant,
-      cost: isInvalidNumber(raw.cost) || cost < 0 ? 0 : cost,
-      sale_price: isInvalidNumber(raw.sale_price) || (salePrice ?? 0) < 0 ? "" : salePrice ?? "",
-      suggested_price: isInvalidNumber(raw.suggested_price) || (suggestedPrice ?? 0) < 0 ? "" : suggestedPrice ?? salePrice ?? "",
-      current_stock: [raw.initial_stock, raw.sales, raw.current_stock].some((value) => isInvalidNumber(value) || (toNumber(value) ?? 0) < 0)
+      cost: isInvalidNumberValue(raw.cost) || cost < 0 ? 0 : cost,
+      sale_price: isInvalidNumberValue(raw.sale_price) || (salePrice ?? 0) < 0 ? "" : salePrice ?? "",
+      suggested_price: isInvalidNumberValue(raw.suggested_price) || (suggestedPrice ?? 0) < 0 ? "" : suggestedPrice ?? salePrice ?? "",
+      current_stock: [raw.initial_stock, raw.sales, raw.current_stock].some((value) => isInvalidNumberValue(value) || (parseNumberValue(value) ?? 0) < 0)
         ? 0
         : currentStock,
-      minimum_stock: isInvalidNumber(raw.minimum_stock) || minimumStock < 0 ? 0 : minimumStock,
+      minimum_stock: isInvalidNumberValue(raw.minimum_stock) || minimumStock < 0 ? 0 : minimumStock,
       supplier: normalizeText(raw.supplier),
       properties,
       notes: sales !== null && sales !== undefined ? `Ventas importadas: ${sales}` : "",
@@ -191,17 +187,6 @@ function duplicateKey(product: ProductDraft) {
 
 function hasValue(value: Cell) {
   return value !== null && value !== undefined && String(value).trim() !== "";
-}
-
-function toNumber(value: unknown) {
-  if (value === null || value === undefined || String(value).trim() === "") return null;
-  const normalized = String(value).replace(/[$,\s]/g, "");
-  const number = Number(normalized);
-  return Number.isFinite(number) ? number : null;
-}
-
-function isInvalidNumber(value: unknown) {
-  return value !== null && value !== undefined && String(value).trim() !== "" && toNumber(value) === null;
 }
 
 function splitCsvLine(line: string) {

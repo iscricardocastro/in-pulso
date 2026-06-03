@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MoneyInput } from "@/components/ui/money-input";
+import { parseMoneyInput, roundMoney } from "@/lib/money";
 import { formatDate, money } from "@/lib/utils";
 import { createCatalogItem } from "@/services/catalogs";
 import { type DebtorSummary, recordDebtPayment } from "@/services/debtors";
@@ -372,37 +374,4 @@ function updateDebtorsAfterPayment(debtors: DebtorSummary[], debtId: string, amo
       };
     })
     .filter((debtor) => debtor.debts.length > 0 && debtor.total_balance > 0);
-}
-
-function MoneyInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-      <Input
-        className="pl-7"
-        inputMode="decimal"
-        value={value}
-        onChange={(event) => onChange(cleanMoneyInput(event.target.value))}
-        onFocus={(event) => {
-          const input = event.currentTarget;
-          window.setTimeout(() => input.select(), 0);
-        }}
-      />
-    </div>
-  );
-}
-
-function cleanMoneyInput(value: string) {
-  const cleaned = value.replace(/[^\d.]/g, "");
-  const [whole, ...rest] = cleaned.split(".");
-  return rest.length > 0 ? `${whole}.${rest.join("").slice(0, 2)}` : whole;
-}
-
-function parseMoneyInput(value: string) {
-  const numeric = Number(value || 0);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
 }

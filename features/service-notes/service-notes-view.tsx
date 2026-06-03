@@ -27,8 +27,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { newClientKey } from "@/lib/client-key";
+import { parseMoneyInput, roundMoney } from "@/lib/money";
+import { getSavedReceiptPrintSize, saveReceiptPrintSize, type ReceiptPrintSize } from "@/lib/receipt-print";
+import { slugKey } from "@/lib/slug";
 import { cn, formatDate, money } from "@/lib/utils";
 import { createCatalogItem } from "@/services/catalogs";
 import { createCustomer } from "@/services/customers";
@@ -51,7 +56,6 @@ import type {
 } from "@/types/database";
 
 type Mode = "history" | "new" | "detail";
-type ReceiptPrintSize = "thermal-80" | "standard";
 type ReceiptContext = {
   company: { id: string; name: string; slug: string };
   seller: { email: string; full_name: string | null };
@@ -80,14 +84,6 @@ type DraftPayment = {
   amount_received: string;
   comments: string;
 };
-
-const nextKey = () => crypto.randomUUID();
-
-function getSavedReceiptPrintSize(): ReceiptPrintSize {
-  if (typeof window === "undefined") return "thermal-80";
-  const saved = window.localStorage.getItem("pulso-receipt-print-size");
-  return saved === "thermal-80" || saved === "standard" ? saved : "thermal-80";
-}
 
 export function ServiceNotesView({
   catalogs,
@@ -126,7 +122,7 @@ export function ServiceNotesView({
 
   function setReceiptPrintSize(size: ReceiptPrintSize) {
     setPrintSize(size);
-    window.localStorage.setItem("pulso-receipt-print-size", size);
+    saveReceiptPrintSize(size);
   }
 
   async function openDetail(noteNumber: string) {
@@ -1122,15 +1118,11 @@ function SummaryRow({ label, value, strong = false }: { label: string; value: st
   );
 }
 
-function MoneyInput({ value, onChange }: { value: number | string; onChange: (value: string) => void }) {
-  return <Input inputMode="decimal" value={String(value)} onChange={(event) => onChange(event.target.value)} />;
-}
-
 function emptyServiceItem(): DraftItem {
   return {
     description: "",
     item_type: "service",
-    key: nextKey(),
+    key: newClientKey(),
     product_code: null,
     product_id: null,
     quantity: 1,
@@ -1143,7 +1135,7 @@ function itemFromProduct(product: ProductOption): DraftItem {
     current_stock: product.current_stock,
     description: product.name,
     item_type: "part",
-    key: nextKey(),
+    key: newClientKey(),
     product_code: product.internal_code,
     product_id: product.id,
     quantity: 1,
@@ -1152,22 +1144,13 @@ function itemFromProduct(product: ProductOption): DraftItem {
 }
 
 function emptyPayment(): DraftPayment {
-  return { amount_received: "", comments: "", key: nextKey(), payment_method_id: "" };
-}
-
-function parseMoneyInput(value: number | string) {
-  const parsed = Number(String(value).replace(/,/g, "."));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return { amount_received: "", comments: "", key: newClientKey(), payment_method_id: "" };
 }
 
 function calculateDiscount(subtotal: number, type: DiscountType | null, value: number) {
   if (!type || value <= 0) return 0;
   if (type === "percent") return roundMoney(subtotal * Math.min(value, 100) / 100);
   return roundMoney(Math.min(value, subtotal));
-}
-
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
 }
 
 function statusLabel(status: ServiceNoteStatus) {
@@ -1195,13 +1178,4 @@ function eventLabel(type: string) {
 
 function fieldLabel(fields: { key: string; label: string }[], key: string) {
   return fields.find((field) => field.key === key)?.label ?? key;
-}
-
-function slugKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }

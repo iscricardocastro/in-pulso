@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { Textarea } from "@/components/ui/textarea";
+import { formatReceiptDate } from "@/lib/date-format";
 import { cn, formatDate } from "@/lib/utils";
 import {
   cancelInventoryAudit,
@@ -1217,15 +1218,4 @@ function itemMatchesQuery(item: InventoryAuditItem, query: string) {
   return [item.product_code, item.product_name, item.brand, item.model, item.category]
     .filter(Boolean)
     .some((value) => String(value).toLowerCase().includes(query));
-}
-
-function formatReceiptDate(value: string | null) {
-  if (!value) return "Sin fecha";
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
 }

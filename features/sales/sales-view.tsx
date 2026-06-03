@@ -16,10 +16,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Barcode } from "@/features/labels/barcode";
 import { discountAmount, lineSubtotal, lineTotal, roundMoney, saleTotals } from "@/features/sales/calculations";
+import { newClientKey } from "@/lib/client-key";
+import { formatReceiptDate } from "@/lib/date-format";
+import { parseMoneyInput } from "@/lib/money";
+import { getSavedReceiptPrintSize, saveReceiptPrintSize, type ReceiptPrintSize } from "@/lib/receipt-print";
 import { cn, formatDate, money } from "@/lib/utils";
 import { createCatalogItem } from "@/services/catalogs";
 import { createCustomer } from "@/services/customers";
@@ -42,7 +47,6 @@ type PaymentLine = {
   comments: string;
 };
 type RefundQuantities = Record<string, number>;
-type ReceiptPrintSize = "thermal-80" | "standard";
 type ReceiptContext = {
   company: {
     id: string;
@@ -54,12 +58,6 @@ type ReceiptContext = {
     full_name: string | null;
   };
 };
-
-function getSavedReceiptPrintSize(): ReceiptPrintSize {
-  if (typeof window === "undefined") return "thermal-80";
-  const saved = window.localStorage.getItem("pulso-receipt-print-size");
-  return saved === "thermal-80" || saved === "standard" ? saved : "thermal-80";
-}
 
 export function SalesView({
   catalogs,
@@ -91,7 +89,7 @@ export function SalesView({
 
   function changeReceiptPrintSize(size: ReceiptPrintSize) {
     setReceiptPrintSize(size);
-    window.localStorage.setItem("pulso-receipt-print-size", size);
+    saveReceiptPrintSize(size);
   }
 
   function queueReceiptPrint(sale: Sale, size = receiptPrintSize, closeAfterPrint = false) {
@@ -436,7 +434,7 @@ function SalePanel({
       const suggestedPrice = Number(product.suggested_price ?? 0);
       const salePrice = Number(product.sale_price ?? product.suggested_price ?? 0);
       const next = {
-        key: crypto.randomUUID(),
+        key: newClientKey(),
         product,
         quantity: 1,
         suggested_price: suggestedPrice,
@@ -906,16 +904,6 @@ function ReceiptLine({ label, value, strong = false }: { label: string; value: s
       <span>{value}</span>
     </div>
   );
-}
-
-function formatReceiptDate(value: string) {
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
 }
 
 function ProductSearchBox({ categoryId, onSelect }: { categoryId: string; onSelect: (product: Product) => void }) {
@@ -1723,51 +1711,7 @@ function SummaryRow({ label, value, strong = false }: { label: string; value: st
 }
 
 function emptyPayment(): PaymentLine {
-  return { key: crypto.randomUUID(), payment_method_id: "", amount_received: "", comments: "" };
-}
-
-function MoneyInput({
-  placeholder,
-  value,
-  onChange,
-}: {
-  placeholder?: string;
-  value: number | string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-      <Input
-        className="pl-7"
-        inputMode="decimal"
-        placeholder={placeholder}
-        value={formatMoneyInput(value)}
-        onChange={(event) => onChange(cleanMoneyInput(event.target.value))}
-        onFocus={(event) => {
-          const input = event.currentTarget;
-          if (parseMoneyInput(input.value) === 0) onChange("");
-          window.setTimeout(() => input.select(), 0);
-        }}
-      />
-    </div>
-  );
-}
-
-function cleanMoneyInput(value: string) {
-  const cleaned = value.replace(/[^\d.]/g, "");
-  const [whole, ...rest] = cleaned.split(".");
-  return rest.length > 0 ? `${whole}.${rest.join("").slice(0, 2)}` : whole;
-}
-
-function formatMoneyInput(value: number | string) {
-  if (typeof value === "number") return value === 0 ? "" : String(value);
-  return value;
-}
-
-function parseMoneyInput(value: number | string) {
-  const numeric = typeof value === "number" ? value : Number(value || 0);
-  return Number.isFinite(numeric) ? numeric : 0;
+  return { key: newClientKey(), payment_method_id: "", amount_received: "", comments: "" };
 }
 
 function paymentSummary(sale: Sale) {
