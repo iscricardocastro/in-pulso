@@ -12,15 +12,29 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/features/import/components/searchable-select";
-import { mappingTargets } from "@/features/import/constants";
 import { useImportWorkflow } from "@/features/import/hooks/use-import-workflow";
 import type { PreviewRow } from "@/features/import/types";
 import { getPreviewStatus } from "@/features/import/utils/import-preview";
 import { createCatalogItem } from "@/services/catalogs";
-import type { CatalogItem } from "@/types/database";
+import type {
+  CatalogItem,
+  ProductImportTemplate,
+  ProductPropertyDefinition,
+  ProductPropertyOption,
+} from "@/types/database";
 
-export function ImportView({ categories }: { categories: CatalogItem[] }) {
-  const workflow = useImportWorkflow(categories);
+export function ImportView({
+  categories,
+  propertyDefinitions,
+  propertyOptions,
+  importTemplates,
+}: {
+  categories: CatalogItem[];
+  propertyDefinitions: ProductPropertyDefinition[];
+  propertyOptions: ProductPropertyOption[];
+  importTemplates: ProductImportTemplate[];
+}) {
+  const workflow = useImportWorkflow(categories, propertyDefinitions, importTemplates);
   const previewColumns = useMemo<ColumnDef<PreviewRow>[]>(
     () => [
       {
@@ -73,6 +87,26 @@ export function ImportView({ categories }: { categories: CatalogItem[] }) {
           />
         ),
       },
+      ...propertyDefinitions
+        .filter((definition) => definition.filterable)
+        .slice(0, 4)
+        .map<ColumnDef<PreviewRow>>((definition) => ({
+          id: `property_${definition.key}`,
+          header: definition.label,
+          accessorFn: (row) => String(getDraftProperties(row.product)[definition.key] ?? ""),
+          meta: { cellClassName: "min-w-36" },
+          cell: ({ row }) => (
+            <EditablePreviewInput
+              disabled={row.original.ignored}
+              label={definition.label}
+              value={getDraftProperties(row.original.product)[definition.key]}
+              onChange={(value) => workflow.editPreview(row.original.rowNumber, "properties", {
+                ...getDraftProperties(row.original.product),
+                [definition.key]: value,
+              })}
+            />
+          ),
+        })),
       {
         id: "cost",
         header: "Costo",
@@ -125,7 +159,7 @@ export function ImportView({ categories }: { categories: CatalogItem[] }) {
           (row.original.ignored ? "Encabezado/separador/decorativo" : "OK"),
       },
     ],
-    [workflow],
+    [workflow, propertyDefinitions],
   );
 
   return (
@@ -157,7 +191,7 @@ export function ImportView({ categories }: { categories: CatalogItem[] }) {
             <CardHeader>
               <CardTitle>Hoja y plantilla</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-4">
+            <CardContent className="grid gap-4 md:grid-cols-5">
               <div className="space-y-2">
                 <Label>Hoja</Label>
                 <SearchableSelect
@@ -175,6 +209,18 @@ export function ImportView({ categories }: { categories: CatalogItem[] }) {
                   value={workflow.headerRow}
                   onChange={(event) => workflow.handleHeaderRowChange(Number(event.target.value))}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Plantilla/layout</Label>
+                <Input
+                  list="import-template-options"
+                  value={workflow.templateName}
+                  onChange={(event) => workflow.handleTemplateChange(event.target.value)}
+                />
+                <datalist id="import-template-options">
+                  <option value="default" />
+                  {importTemplates.map((template) => <option key={template.id} value={template.name} />)}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <Label>Categoria</Label>
@@ -202,7 +248,7 @@ export function ImportView({ categories }: { categories: CatalogItem[] }) {
               <CardTitle>Mapeo de columnas</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
-              {mappingTargets.map((target) => (
+              {workflow.mappingTargets.map((target) => (
                 <div key={target.key} className="space-y-2">
                   <Label>{target.label}</Label>
                   <SearchableSelect
@@ -289,4 +335,11 @@ function EditablePreviewInput({
       onChange={(event) => onChange(event.target.value)}
     />
   );
+}
+
+function getDraftProperties(product: PreviewRow["product"]) {
+  const properties = product.properties;
+  return properties && typeof properties === "object" && !Array.isArray(properties)
+    ? properties as Record<string, unknown>
+    : {};
 }

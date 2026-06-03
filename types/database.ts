@@ -98,6 +98,7 @@ export type Product = {
   suggested_price: number | null;
   current_stock: number;
   minimum_stock: number;
+  properties: Record<string, Json | undefined>;
   primary_supplier_id: string | null;
   notes: string | null;
   created_at: string;
@@ -147,6 +148,43 @@ export type CatalogItem = {
   parent_id: string | null;
   kind: CatalogKind;
   name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductPropertyType = "text" | "number" | "date" | "boolean" | "option";
+
+export type ProductPropertyDefinition = {
+  id: string;
+  tenant_id: string;
+  key: string;
+  label: string;
+  type: ProductPropertyType;
+  required: boolean;
+  searchable: boolean;
+  filterable: boolean;
+  display_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductPropertyOption = {
+  id: string;
+  tenant_id: string;
+  definition_id: string;
+  value: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductImportTemplate = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  mapping: Record<string, string | undefined>;
+  header_row: number;
   created_at: string;
   updated_at: string;
 };

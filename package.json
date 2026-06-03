@@ -13,7 +13,9 @@
     "supabase:link": "supabase link",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",
-    "db:diff": "supabase db diff"
+    "db:diff": "supabase db diff",
+    "db:push:staging": "dotenv -e .env -- sh -c 'supabase db push --db-url \"$STAGING_DB_URL\"'",
+    "db:push:prod": "dotenv -e .env -- sh -c 'supabase db push --db-url \"$PROD_DB_URL\"'"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -44,6 +46,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.0",
     "supabase": "^2.59.3",

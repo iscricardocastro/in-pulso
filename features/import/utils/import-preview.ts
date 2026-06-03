@@ -1,5 +1,6 @@
-import { editableNumericFields, mappingTargets, separatorWords } from "@/features/import/constants";
-import type { Cell, ImportColumn, PreviewRow, ProductDraft } from "@/features/import/types";
+import { editableNumericFields, separatorWords } from "@/features/import/constants";
+import type { Cell, ImportColumn, MappingTarget, PreviewRow, ProductDraft } from "@/features/import/types";
+import type { ProductPropertyDefinition } from "@/types/database";
 
 export function getPreviewStatus(row: PreviewRow) {
   if (row.ignored) return "Ignorada";
@@ -31,10 +32,12 @@ export function buildPreview(
   mapping: Record<string, string>,
   headerIndex: number,
   selectedCategory: string,
+  mappingTargets: MappingTarget[],
+  propertyDefinitions: ProductPropertyDefinition[],
 ) {
   const mapped = rows.slice(headerIndex + 1).map((row, index) => {
     const source = Object.fromEntries(columns.map((column, columnIndex) => [column.key, row[columnIndex]]));
-    return toPreviewRow(source, mapping, headerIndex + index + 2, selectedCategory);
+    return toPreviewRow(source, mapping, headerIndex + index + 2, selectedCategory, mappingTargets, propertyDefinitions);
   });
 
   const keys = mapped.map((row) => duplicateKey(row.product));
@@ -101,16 +104,24 @@ function toPreviewRow(
   mapping: Record<string, string>,
   rowNumber: number,
   selectedCategory: string,
+  mappingTargets: MappingTarget[],
+  propertyDefinitions: ProductPropertyDefinition[],
 ): PreviewRow {
   if (isSeparatorRow(source)) {
     return { rowNumber, ignored: true, errors: [], warnings: [], product: {} };
   }
 
   const raw = Object.fromEntries(mappingTargets.map((target) => [target.key, source[mapping[target.key]]]));
-  const brand = normalizeText(raw.brand);
-  const model = normalizeText(raw.model);
-  const category = selectedCategory;
-  const variant = normalizeText(raw.variant);
+  const properties = Object.fromEntries(
+    propertyDefinitions.map((definition) => {
+      const value = normalizeText(raw[`property:${definition.key}`]);
+      return [definition.key, value || (definition.key === "category" ? selectedCategory : "")];
+    }),
+  );
+  const brand = normalizeText(properties.brand);
+  const model = normalizeText(properties.model);
+  const category = normalizeText(properties.category);
+  const variant = normalizeText(properties.variant);
   const sales = toNumber(raw.sales);
   const initialStock = toNumber(raw.initial_stock);
   const explicitCurrent = toNumber(raw.current_stock);
@@ -119,11 +130,17 @@ function toPreviewRow(
   const suggestedPrice = toNumber(raw.suggested_price);
   const cost = toNumber(raw.cost) ?? 0;
   const minimumStock = toNumber(raw.minimum_stock) ?? 0;
-  const name = [brand, model, variant].filter(Boolean).join(" ") || [category, model].filter(Boolean).join(" ");
+  const explicitName = normalizeText(raw.name);
+  const name = explicitName || [brand, model, variant].filter(Boolean).join(" ") || [category, model].filter(Boolean).join(" ");
   const errors: string[] = [];
   const warnings: string[] = [];
 
   if (!name) errors.push("Producto sin nombre");
+  for (const definition of propertyDefinitions) {
+    if (definition.required && !normalizeText(properties[definition.key])) {
+      errors.push(`${definition.label} requerido`);
+    }
+  }
   if (isInvalidNumber(raw.cost) || cost < 0) warnings.push("Costo invalido: no se importara");
   if (isInvalidNumber(raw.sale_price) || (salePrice ?? 0) < 0) warnings.push("Precio venta invalido: no se importara");
   if (isInvalidNumber(raw.suggested_price) || (suggestedPrice ?? 0) < 0) warnings.push("Precio sugerido invalido: no se importara");
@@ -150,6 +167,7 @@ function toPreviewRow(
         : currentStock,
       minimum_stock: isInvalidNumber(raw.minimum_stock) || minimumStock < 0 ? 0 : minimumStock,
       supplier: normalizeText(raw.supplier),
+      properties,
       notes: sales !== null && sales !== undefined ? `Ventas importadas: ${sales}` : "",
     },
   };

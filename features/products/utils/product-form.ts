@@ -19,6 +19,7 @@ export function getProductFormDefaults(product?: Product): ProductFormValues {
       current_stock: 0,
       minimum_stock: 1,
       primary_supplier_id: "",
+      properties: {},
       notes: "",
     };
   }
@@ -40,6 +41,7 @@ export function getProductFormDefaults(product?: Product): ProductFormValues {
     current_stock: product.current_stock,
     minimum_stock: product.minimum_stock,
     primary_supplier_id: product.primary_supplier_id || "",
+    properties: product.properties ?? {},
     notes: product.notes || "",
   };
 }

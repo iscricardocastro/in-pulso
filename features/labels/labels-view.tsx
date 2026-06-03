@@ -2,11 +2,12 @@
 
 import { Check, ChevronsUpDown, Printer, QrCode, X } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FloatingListbox } from "@/components/ui/floating-listbox";
 import { Input } from "@/components/ui/input";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
 import { Select } from "@/components/ui/select";
@@ -139,6 +140,7 @@ function ProductMultiSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -157,13 +159,9 @@ function ProductMultiSelect({
   }
 
   return (
-    <div
-      className="relative w-full sm:w-80"
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
-    >
+    <div className="relative w-full sm:w-80">
       <button
+        ref={triggerRef}
         aria-expanded={open}
         aria-haspopup="listbox"
         className="motion-press flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none transition-colors duration-200 hover:bg-accent focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
@@ -193,12 +191,13 @@ function ProductMultiSelect({
         </div>
       ) : null}
 
-      {open ? (
-        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 shadow-xl shadow-slate-950/10 ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50">
+      <FloatingListbox role="presentation" open={open} triggerRef={triggerRef} onPointerDownOutside={() => setOpen(false)}>
+        {(position) => (
+        <>
           <div className="border-b border-slate-200 p-2 dark:border-slate-800">
             <Input autoFocus placeholder="Buscar producto" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
-          <div className="max-h-72 overflow-auto p-1.5" role="listbox" aria-multiselectable="true">
+          <div className="overflow-auto p-1.5" role="listbox" aria-multiselectable="true" style={{ maxHeight: Math.max(120, position.maxHeight - 52) }}>
             <ProductOption active={selectedIds.length === 0} label="Todas" onClick={() => onChange([])} />
             {filtered.map((product) => (
               <ProductOption
@@ -215,8 +214,9 @@ function ProductMultiSelect({
               </div>
             ) : null}
           </div>
-        </div>
-      ) : null}
+        </>
+        )}
+      </FloatingListbox>
     </div>
   );
 }

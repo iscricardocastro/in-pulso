@@ -1,7 +1,5 @@
-export const mappingTargets = [
-  { key: "brand", label: "Marca" },
-  { key: "model", label: "Modelo" },
-  { key: "variant", label: "Variante / Calidad" },
+export const baseMappingTargets = [
+  { key: "name", label: "Nombre" },
   { key: "sale_price", label: "Precio venta" },
   { key: "cost", label: "Costo compra" },
   { key: "suggested_price", label: "Precio sugerido" },
@@ -10,6 +8,7 @@ export const mappingTargets = [
   { key: "current_stock", label: "Existencia actual" },
   { key: "minimum_stock", label: "Stock minimo" },
   { key: "supplier", label: "Proveedor" },
+  { key: "notes", label: "Notas" },
 ];
 
 export const editableNumericFields = [
