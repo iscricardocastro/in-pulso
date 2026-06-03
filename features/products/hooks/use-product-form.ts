@@ -9,15 +9,19 @@ import { productSchema, type ProductFormValues } from "@/features/products/schem
 import { getProductFormDefaults } from "@/features/products/utils/product-form";
 import { getFirstFieldErrorMessage } from "@/lib/form-errors";
 import { upsertProduct } from "@/services/products";
-import type { CatalogItem, Product } from "@/types/database";
+import type { CatalogItem, Product, ProductPropertyDefinition, ProductPropertyOption } from "@/types/database";
 
 export function useProductForm({
   product,
   catalogs,
+  propertyDefinitions,
+  propertyOptions,
   onSaved,
 }: {
   product?: Product;
   catalogs: CatalogItem[];
+  propertyDefinitions: ProductPropertyDefinition[];
+  propertyOptions: ProductPropertyOption[];
   onSaved?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -34,6 +38,7 @@ export function useProductForm({
   const variant = useWatch({ control: form.control, name: "variant" });
   const variantId = useWatch({ control: form.control, name: "variant_id" });
   const primarySupplierId = useWatch({ control: form.control, name: "primary_supplier_id" });
+  const properties = useWatch({ control: form.control, name: "properties" }) ?? {};
   const brandItems = catalogs.filter((item) => item.kind === "brand");
   const selectedBrand = brandItems.find((item) => item.id === brandId) ?? brandItems.find((item) => item.name.toLowerCase() === (brand || "").trim().toLowerCase());
   const modelItems = selectedBrand ? catalogs.filter((item) => item.kind === "model" && item.parent_id === selectedBrand.id) : [];
@@ -62,6 +67,10 @@ export function useProductForm({
 
   function setFieldValue(key: "brand_id" | "model_id" | "category_id" | "variant_id" | "primary_supplier_id", value: string) {
     form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
+  }
+
+  function setPropertyValue(key: string, value: unknown) {
+    form.setValue("properties", { ...properties, [key]: value }, { shouldDirty: true, shouldValidate: true });
   }
 
   function submit(values: ProductFormValues) {
@@ -93,6 +102,9 @@ export function useProductForm({
     variant,
     variantId,
     primarySupplierId,
+    properties,
+    propertyDefinitions,
+    propertyOptions,
     brandItems,
     selectedBrand,
     modelItems,
@@ -102,6 +114,7 @@ export function useProductForm({
     selectModel,
     selectVariant,
     setFieldValue,
+    setPropertyValue,
     submit,
   };
 }

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FloatingListbox } from "@/components/ui/floating-listbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ModalOverlay } from "@/components/ui/modal-overlay";
@@ -515,6 +516,7 @@ function CategoryMultiSearch({
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const selected = categories.filter((category) => selectedCategoryIds.includes(category.id));
   const available = categories.filter((category) => !selectedCategoryIds.includes(category.id) && !disabledCategoryIds.has(category.id));
   const filtered = available.filter((category) => category.name.toLowerCase().includes(query.trim().toLowerCase()));
@@ -559,7 +561,7 @@ function CategoryMultiSearch({
             ))}
           </div>
         ) : null}
-        <div className="relative">
+        <div ref={triggerRef} className="relative">
           <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             id="audit-category-search"
@@ -579,9 +581,14 @@ function CategoryMultiSearch({
               select(filtered[0].id);
             }}
           />
-          {open ? (
-            <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-xl shadow-slate-950/15 ring-1 ring-border/60">
-              <div className="max-h-64 overflow-auto p-1.5">
+          <FloatingListbox
+            className="border-border bg-popover text-popover-foreground shadow-slate-950/15 ring-border/60"
+            open={open}
+            triggerRef={triggerRef}
+            onPointerDownOutside={() => setOpen(false)}
+          >
+            {(position) => (
+              <div className="overflow-auto p-1.5" style={{ maxHeight: position.maxHeight }}>
                 {filtered.length === 0 ? (
                   <div className="rounded-md px-3 py-2.5 text-sm text-muted-foreground">
                     {available.length === 0 ? "Todas las categorias seleccionadas." : "Sin resultados."}
@@ -601,8 +608,8 @@ function CategoryMultiSearch({
                   ))
                 )}
               </div>
-            </div>
-          ) : null}
+            )}
+          </FloatingListbox>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">

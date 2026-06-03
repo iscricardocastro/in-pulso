@@ -24,3 +24,9 @@ export type SearchableSelectOption = {
   value: string;
   label: string;
 };
+
+export type MappingTarget = {
+  key: string;
+  label: string;
+  propertyKey?: string;
+};

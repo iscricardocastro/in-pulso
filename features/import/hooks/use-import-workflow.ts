@@ -3,7 +3,7 @@
 import { type ChangeEvent, useMemo, useState, useTransition } from "react";
 import readXlsxFile from "read-excel-file/browser";
 import { toast } from "sonner";
-import { loadImportTemplate, saveImportTemplate } from "@/features/import/services/import-template-storage";
+import { baseMappingTargets } from "@/features/import/constants";
 import type { ProductDraft, WorkbookSheet } from "@/features/import/types";
 import {
   applyEditedRows,
@@ -14,25 +14,46 @@ import {
   parseCsv,
   sanitizeImportProduct,
 } from "@/features/import/utils/import-preview";
+import { saveProductImportTemplate } from "@/services/product-properties";
 import { importProducts } from "@/services/products";
-import type { CatalogItem } from "@/types/database";
+import type {
+  CatalogItem,
+  ProductImportTemplate,
+  ProductPropertyDefinition,
+} from "@/types/database";
 
-export function useImportWorkflow(categories: CatalogItem[]) {
+export function useImportWorkflow(
+  categories: CatalogItem[],
+  propertyDefinitions: ProductPropertyDefinition[],
+  importTemplates: ProductImportTemplate[],
+) {
   const [fileName, setFileName] = useState("");
   const [sheets, setSheets] = useState<WorkbookSheet[]>([]);
   const [selectedSheet, setSelectedSheet] = useState("");
   const [headerRow, setHeaderRow] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState(categories[0]?.name ?? "");
+  const [templateName, setTemplateName] = useState(importTemplates[0]?.name ?? "default");
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [editedRows, setEditedRows] = useState<Record<number, ProductDraft>>({});
   const [importError, setImportError] = useState("");
   const [pending, startTransition] = useTransition();
 
   const activeSheet = sheets.find((sheet) => sheet.sheet === selectedSheet);
+  const mappingTargets = useMemo(
+    () => [
+      ...baseMappingTargets,
+      ...propertyDefinitions.map((definition) => ({
+        key: `property:${definition.key}`,
+        label: definition.label,
+        propertyKey: definition.key,
+      })),
+    ],
+    [propertyDefinitions],
+  );
   const columns = useMemo(() => getColumns(activeSheet?.data ?? [], headerRow - 1), [activeSheet, headerRow]);
   const basePreview = useMemo(
-    () => buildPreview(activeSheet?.data ?? [], columns, mapping, headerRow - 1, selectedCategory),
-    [activeSheet, columns, mapping, headerRow, selectedCategory],
+    () => buildPreview(activeSheet?.data ?? [], columns, mapping, headerRow - 1, selectedCategory, mappingTargets, propertyDefinitions),
+    [activeSheet, columns, mapping, headerRow, selectedCategory, mappingTargets, propertyDefinitions],
   );
   const preview = useMemo(() => applyEditedRows(basePreview, editedRows), [basePreview, editedRows]);
   const importableRows = preview.filter((row) => !row.ignored && hasProductName(row.product));
@@ -52,7 +73,7 @@ export function useImportWorkflow(categories: CatalogItem[]) {
     setHeaderRow(detectHeaderRow(parsedSheets[0]?.data ?? []) + 1);
     setEditedRows({});
     setImportError("");
-    handleLoadTemplate(selectedCategory);
+    handleLoadTemplate(templateName);
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -68,7 +89,6 @@ export function useImportWorkflow(categories: CatalogItem[]) {
 
   function handleCategoryChange(name: string) {
     setSelectedCategory(name);
-    handleLoadTemplate(name);
   }
 
   function handleMappingChange(key: string, value: string) {
@@ -79,16 +99,33 @@ export function useImportWorkflow(categories: CatalogItem[]) {
     setHeaderRow(value);
   }
 
-  function handleLoadTemplate(type: string) {
-    setMapping(loadImportTemplate(type));
+  function handleTemplateChange(name: string) {
+    setTemplateName(name || "default");
+    handleLoadTemplate(name || "default");
+  }
+
+  function handleLoadTemplate(name: string) {
+    const template = importTemplates.find((entry) => entry.name === name);
+    if (template) {
+      setMapping(Object.fromEntries(Object.entries(template.mapping).map(([key, value]) => [key, String(value ?? "")])));
+      setHeaderRow(template.header_row);
+    } else {
+      setMapping({});
+    }
   }
 
   function handleSaveTemplate() {
-    saveImportTemplate(selectedCategory, mapping);
-    toast.success(`Plantilla guardada para ${selectedCategory || "sin categoria"}`);
+    startTransition(async () => {
+      try {
+        await saveProductImportTemplate({ name: templateName || "default", mapping, header_row: headerRow });
+        toast.success(`Plantilla guardada: ${templateName || "default"}`);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo guardar plantilla");
+      }
+    });
   }
 
-  function editPreview(rowNumber: number, key: string, value: string) {
+  function editPreview(rowNumber: number, key: string, value: unknown) {
     setEditedRows((current) => ({
       ...current,
       [rowNumber]: {
@@ -126,7 +163,9 @@ export function useImportWorkflow(categories: CatalogItem[]) {
     selectedSheet,
     headerRow,
     selectedCategory,
+    templateName,
     mapping,
+    mappingTargets,
     columns,
     preview,
     importableRows,
@@ -142,6 +181,7 @@ export function useImportWorkflow(categories: CatalogItem[]) {
     handleMappingChange,
     handleSaveTemplate,
     handleSheetChange,
+    handleTemplateChange,
     runImport,
   };
 }

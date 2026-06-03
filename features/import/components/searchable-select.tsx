@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { FloatingListbox } from "@/components/ui/floating-listbox";
 import { Input } from "@/components/ui/input";
 import type { SearchableSelectOption } from "@/features/import/types";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ export function SearchableSelect({
   onChange: (value: string) => void;
 }) {
   const listId = useId();
+  const triggerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
   const [query, setQuery] = useState(selected?.label ?? "");
@@ -43,7 +45,7 @@ export function SearchableSelect({
   }
 
   return (
-    <div className="relative">
+    <div ref={triggerRef} className="relative">
       <div className="relative">
         <Input
           aria-controls={open ? listId : undefined}
@@ -84,13 +86,9 @@ export function SearchableSelect({
         />
       </div>
 
-      {open ? (
-        <div
-          className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 shadow-xl shadow-slate-950/10 ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 dark:shadow-black/30 dark:ring-white/10"
-          id={listId}
-          role="listbox"
-        >
-          <div className="max-h-64 overflow-auto p-1.5">
+      <FloatingListbox id={listId} open={open} triggerRef={triggerRef}>
+        {(position) => (
+          <div className="overflow-auto p-1.5" style={{ maxHeight: position.maxHeight }}>
             {filtered.length === 0 ? (
               <div className="rounded-md bg-slate-50 px-3 py-2.5 text-sm text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
                 {emptyLabel}
@@ -120,8 +118,8 @@ export function SearchableSelect({
               })
             )}
           </div>
-        </div>
-      ) : null}
+        )}
+      </FloatingListbox>
     </div>
   );
 }

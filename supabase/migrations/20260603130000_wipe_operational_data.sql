@@ -1,0 +1,33 @@
+truncate table
+  public.billing_events,
+  public.tenant_subscriptions,
+  public.billing_plans,
+  public.debt_payments,
+  public.customer_debts,
+  public.service_note_events,
+  public.service_note_payments,
+  public.service_note_items,
+  public.service_notes,
+  public.service_templates,
+  public.sale_events,
+  public.sale_refund_items,
+  public.sale_refunds,
+  public.sale_payments,
+  public.sale_items,
+  public.sales,
+  public.inventory_audit_items,
+  public.inventory_audits,
+  public.purchase_order_events,
+  public.purchase_orders,
+  public.inventory_movements,
+  public.stock_alerts,
+  public.product_property_options,
+  public.product_property_definitions,
+  public.product_import_templates,
+  public.products,
+  public.catalog_items,
+  public.suppliers,
+  public.customers
+restart identity cascade;
+
+notify pgrst, 'reload schema';

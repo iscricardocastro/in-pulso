@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { productSchema } from "@/features/products/schemas";
 import { getOrCreateCatalogItem } from "@/services/catalogs";
 import { requireUserContext } from "@/services/context";
-import type { CatalogItem, Product } from "@/types/database";
+import { createProductPropertyOption, getActiveProductPropertyDefinitions } from "@/services/product-properties";
+import type { CatalogItem, Product, ProductPropertyDefinition } from "@/types/database";
 
 export async function getProducts() {
   const { supabase } = await requireUserContext();
@@ -28,7 +29,11 @@ export async function upsertProduct(input: unknown) {
   const { supabase, profile } = await requireUserContext();
   const values = productSchema.parse(input);
   const isEdit = Boolean(values.id);
-  const catalogValues = await resolveProductCatalogValues(supabase, profile.tenant_id, values);
+  const definitions = await getActiveProductPropertyDefinitions();
+  const properties = normalizeProductProperties(values.properties, definitions);
+  const legacyValues = withLegacyPropertyValues(values, properties);
+  const catalogValues = await resolveProductCatalogValues(supabase, profile.tenant_id, legacyValues);
+  await ensurePropertyOptions(properties, definitions);
 
   const payload = {
     tenant_id: profile.tenant_id,
@@ -37,16 +42,17 @@ export async function upsertProduct(input: unknown) {
     model_id: catalogValues.model?.id ?? null,
     category_id: catalogValues.category?.id ?? null,
     variant_id: catalogValues.variant?.id ?? null,
-    brand: catalogValues.brand?.name ?? values.brand ?? null,
-    model: catalogValues.model?.name ?? values.model ?? null,
-    category: catalogValues.category?.name ?? values.category ?? null,
-    variant: catalogValues.variant?.name ?? values.variant ?? null,
+    brand: catalogValues.brand?.name ?? legacyValues.brand ?? null,
+    model: catalogValues.model?.name ?? legacyValues.model ?? null,
+    category: catalogValues.category?.name ?? legacyValues.category ?? null,
+    variant: catalogValues.variant?.name ?? legacyValues.variant ?? null,
     cost: values.cost,
     sale_price: values.sale_price === "" ? null : values.sale_price,
     suggested_price:
       values.suggested_price === "" ? null : values.suggested_price,
     current_stock: values.current_stock,
     minimum_stock: values.minimum_stock,
+    properties,
     primary_supplier_id: values.primary_supplier_id || null,
     notes: values.notes || null,
   };
@@ -88,6 +94,7 @@ export async function deleteProduct(id: string) {
 
 export async function importProducts(rows: unknown[]) {
   const { supabase, profile } = await requireUserContext();
+  const definitions = await getActiveProductPropertyDefinitions();
   const products = [];
 
   for (const row of rows as Record<string, unknown>[]) {
@@ -114,9 +121,13 @@ export async function importProducts(rows: unknown[]) {
         row.current_stock ?? row.stock ?? row.Stock ?? row["Stock actual"] ?? 0,
       minimum_stock: row.minimum_stock ?? row["Stock minimo"] ?? 0,
       supplier: row.supplier ?? row.proveedor ?? row.Proveedor ?? "",
+      properties: row.properties ?? extractPropertyValues(row, definitions),
       notes: row.notes ?? row.Notas ?? "",
     });
-    products.push(parsed);
+    products.push({
+      ...parsed,
+      properties: normalizeProductProperties(parsed.properties, definitions),
+    });
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -160,6 +171,9 @@ export async function importProducts(rows: unknown[]) {
   }
 
   const catalogValues = await resolveManyProductCatalogValues(supabase, profile.tenant_id, products);
+  for (const product of products) {
+    await ensurePropertyOptions(product.properties, definitions);
+  }
   const payload = products.map((product, index) => {
     const supplierName = product.supplier || "";
     const resolved = catalogValues[index];
@@ -181,6 +195,7 @@ export async function importProducts(rows: unknown[]) {
         product.suggested_price === "" ? null : product.suggested_price,
       current_stock: product.current_stock,
       minimum_stock: product.minimum_stock,
+      properties: product.properties,
       primary_supplier_id: supplierIds.get(supplierName) ?? null,
       notes: product.notes || null,
     };
@@ -221,6 +236,70 @@ export async function importProducts(rows: unknown[]) {
   revalidatePath("/movements");
   revalidatePath("/dashboard");
   return insertedCount;
+}
+
+function normalizeProductProperties(
+  input: Record<string, unknown>,
+  definitions: ProductPropertyDefinition[],
+) {
+  const output: Record<string, string | number | boolean | null> = {};
+
+  for (const definition of definitions) {
+    const raw = input[definition.key];
+    const value = normalizePropertyValue(raw, definition);
+    if (definition.required && (value === null || value === "")) {
+      throw new Error(`${definition.label} requerido`);
+    }
+    if (value !== null && value !== "") output[definition.key] = value;
+  }
+
+  return output;
+}
+
+function normalizePropertyValue(value: unknown, definition: ProductPropertyDefinition) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  if (definition.type === "number") {
+    const number = Number(String(value).replace(/[$,\s]/g, ""));
+    if (!Number.isFinite(number)) throw new Error(`${definition.label} invalido`);
+    return number;
+  }
+  if (definition.type === "boolean") {
+    if (typeof value === "boolean") return value;
+    const text = String(value).trim().toLowerCase();
+    return ["si", "sí", "true", "1", "yes"].includes(text);
+  }
+  return String(value).trim();
+}
+
+function extractPropertyValues(row: Record<string, unknown>, definitions: ProductPropertyDefinition[]) {
+  return Object.fromEntries(
+    definitions.map((definition) => [definition.key, row[definition.key] ?? row[definition.label]]),
+  );
+}
+
+function withLegacyPropertyValues<T extends ProductFormCatalogValues>(
+  values: T,
+  properties: Record<string, string | number | boolean | null>,
+) {
+  return {
+    ...values,
+    brand: String(properties.brand ?? values.brand ?? ""),
+    model: String(properties.model ?? values.model ?? ""),
+    category: String(properties.category ?? values.category ?? ""),
+    variant: String(properties.variant ?? values.variant ?? ""),
+  };
+}
+
+async function ensurePropertyOptions(
+  properties: Record<string, string | number | boolean | null>,
+  definitions: ProductPropertyDefinition[],
+) {
+  for (const definition of definitions) {
+    if (definition.type !== "option") continue;
+    const value = properties[definition.key];
+    if (value === null || value === undefined || String(value).trim() === "") continue;
+    await createProductPropertyOption({ definition_id: definition.id, value: String(value) });
+  }
 }
 
 async function resolveManyProductCatalogValues(

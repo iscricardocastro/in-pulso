@@ -9,39 +9,43 @@ import { Textarea } from "@/components/ui/textarea";
 import { useProductForm } from "@/features/products/hooks/use-product-form";
 import { createCatalogItem } from "@/services/catalogs";
 import { createSupplier } from "@/services/suppliers";
-import type { CatalogItem, CatalogKind, Product, Supplier } from "@/types/database";
+import type {
+  CatalogItem,
+  CatalogKind,
+  Product,
+  ProductPropertyDefinition,
+  ProductPropertyOption,
+  Supplier,
+} from "@/types/database";
 
 type ProductFormProps = {
   product?: Product;
   suppliers: Supplier[];
   catalogs: CatalogItem[];
+  propertyDefinitions: ProductPropertyDefinition[];
+  propertyOptions: ProductPropertyOption[];
   onSaved?: () => void;
   onCancel?: () => void;
 };
 
-export function ProductForm({ product, suppliers, catalogs, onSaved, onCancel }: ProductFormProps) {
-  const productForm = useProductForm({ product, catalogs, onSaved });
+export function ProductForm({
+  product,
+  suppliers,
+  catalogs,
+  propertyDefinitions,
+  propertyOptions,
+  onSaved,
+  onCancel,
+}: ProductFormProps) {
+  const productForm = useProductForm({ product, catalogs, propertyDefinitions, propertyOptions, onSaved });
   const {
     form,
     pending,
-    brand,
-    brandId,
-    model,
-    modelId,
-    category,
-    categoryId,
-    variant,
-    variantId,
     primarySupplierId,
-    brandItems,
-    selectedBrand,
-    modelItems,
+    properties,
     invalid,
-    selectBrand,
-    selectCategory,
-    selectModel,
-    selectVariant,
     setFieldValue,
+    setPropertyValue,
     submit,
   } = productForm;
 
@@ -54,61 +58,6 @@ export function ProductForm({ product, suppliers, catalogs, onSaved, onCancel }:
       <input type="hidden" {...form.register("variant_id")} />
       <Field error={form.formState.errors.name?.message} label="Nombre">
         <Input {...form.register("name")} />
-      </Field>
-      <Field label="Marca">
-        <CatalogField
-          catalogs={brandItems}
-          kind="brand"
-          placeholder="Buscar o agregar marca"
-          selectedValue={brandId || ""}
-          value={brand || ""}
-          valueMode="id"
-          onChange={(value) => setFieldValue("brand_id", value)}
-          onSelect={selectBrand}
-        />
-      </Field>
-      <Field label="Modelo">
-        <CatalogField
-          key={selectedBrand?.id ?? brand ?? "model-without-brand"}
-          catalogs={modelItems}
-          disabled={!brand?.trim()}
-          kind="model"
-          placeholder={brand?.trim() ? "Buscar o agregar modelo" : "Selecciona marca primero"}
-          selectedValue={modelId || ""}
-          value={model || ""}
-          valueMode="id"
-          onChange={(value) => setFieldValue("model_id", value)}
-          onSelect={selectModel}
-          onCreate={async (name) => {
-            const parentBrand = selectedBrand ?? await createCatalogItem("brand", brand || "");
-            selectBrand(parentBrand);
-            return createCatalogItem("model", name, parentBrand.id);
-          }}
-        />
-      </Field>
-      <Field label="Categoria">
-        <CatalogField
-          catalogs={catalogs}
-          kind="category"
-          placeholder="Buscar o agregar categoria"
-          selectedValue={categoryId || ""}
-          value={category || ""}
-          valueMode="id"
-          onChange={(value) => setFieldValue("category_id", value)}
-          onSelect={selectCategory}
-        />
-      </Field>
-      <Field label="Variante">
-        <CatalogField
-          catalogs={catalogs}
-          kind="variant"
-          placeholder="Buscar o agregar variante"
-          selectedValue={variantId || ""}
-          value={variant || ""}
-          valueMode="id"
-          onChange={(value) => setFieldValue("variant_id", value)}
-          onSelect={selectVariant}
-        />
       </Field>
       <Field error={form.formState.errors.primary_supplier_id?.message} label="Proveedor principal">
         <SupplierField
@@ -138,6 +87,23 @@ export function ProductForm({ product, suppliers, catalogs, onSaved, onCancel }:
           <Textarea {...form.register("notes")} />
         </Field>
       </div>
+      {propertyDefinitions.length > 0 ? (
+        <div className="grid gap-4 border-t border-border pt-4 md:col-span-2 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <h3 className="text-sm font-semibold">Propiedades</h3>
+            <p className="text-sm text-muted-foreground">Campos configurables para este negocio.</p>
+          </div>
+          {propertyDefinitions.map((definition) => (
+            <PropertyField
+              key={definition.id}
+              definition={definition}
+              options={propertyOptions.filter((option) => option.definition_id === definition.id)}
+              value={properties[definition.key]}
+              onChange={(value) => setPropertyValue(definition.key, value)}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="flex flex-col-reverse gap-2 md:col-span-2 sm:flex-row sm:justify-end">
         {onCancel ? (
           <Button disabled={pending} type="button" variant="secondary" onClick={onCancel}>
@@ -150,6 +116,57 @@ export function ProductForm({ product, suppliers, catalogs, onSaved, onCancel }:
         </Button>
       </div>
     </form>
+  );
+}
+
+function PropertyField({
+  definition,
+  options,
+  value,
+  onChange,
+}: {
+  definition: ProductPropertyDefinition;
+  options: ProductPropertyOption[];
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const textValue = value === null || value === undefined ? "" : String(value);
+
+  return (
+    <Field label={`${definition.label}${definition.required ? " *" : ""}`}>
+      {definition.type === "option" ? (
+        <CreatableCombobox
+          createSuccessMessage="Opcion agregada"
+          emptyLabel="Sin opciones"
+          options={options.map((option) => ({ id: option.id, name: option.value }))}
+          placeholder={`Buscar o agregar ${definition.label.toLowerCase()}`}
+          value={textValue}
+          onChange={onChange}
+          onCreate={async (name) => {
+            const option = await import("@/services/product-properties").then((module) =>
+              module.createProductPropertyOption({ definition_id: definition.id, value: name }),
+            );
+            return { id: option.id, name: option.value };
+          }}
+          onSelect={(option) => onChange(option.name)}
+        />
+      ) : definition.type === "boolean" ? (
+        <select
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={String(Boolean(value))}
+          onChange={(event) => onChange(event.target.value === "true")}
+        >
+          <option value="false">No</option>
+          <option value="true">Si</option>
+        </select>
+      ) : (
+        <Input
+          type={definition.type === "number" ? "number" : definition.type === "date" ? "date" : "text"}
+          value={textValue}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </Field>
   );
 }
 

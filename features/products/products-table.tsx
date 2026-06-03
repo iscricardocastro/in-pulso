@@ -13,21 +13,24 @@ import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProductForm } from "@/features/products/product-form";
 import { useFormReveal } from "@/hooks/use-form-reveal";
-import { productBrand, productCategory, productModel } from "@/lib/catalog-display";
 import { money } from "@/lib/utils";
 import { deleteProduct } from "@/services/products";
-import type { CatalogItem, Product, Supplier } from "@/types/database";
+import type { CatalogItem, Product, ProductPropertyDefinition, ProductPropertyOption, Supplier } from "@/types/database";
 
 export function ProductsTable({
   products,
   suppliers,
   catalogs,
+  propertyDefinitions,
+  propertyOptions,
   initialQuery,
   stockFilter,
 }: {
   products: Product[];
   suppliers: Supplier[];
   catalogs: CatalogItem[];
+  propertyDefinitions: ProductPropertyDefinition[];
+  propertyOptions: ProductPropertyOption[];
   initialQuery?: string;
   stockFilter?: string;
 }) {
@@ -81,23 +84,17 @@ export function ProductsTable({
       {
         accessorKey: "name",
         header: "Producto",
-        cell: ({ row }) => (
-          <div>
-            <p className="font-medium">{row.original.name}</p>
-            <p className="text-xs text-muted-foreground">{productModel(row.original) || "Sin modelo"}</p>
-          </div>
-        ),
+        cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
       },
-      {
-        id: "brand",
-        header: "Marca",
-        accessorFn: (row) => productBrand(row),
-      },
-      {
-        id: "category",
-        header: "Categoria",
-        accessorFn: (row) => productCategory(row),
-      },
+      ...propertyDefinitions
+        .filter((definition) => definition.filterable)
+        .slice(0, 4)
+        .map<ColumnDef<Product>>((definition) => ({
+          id: `property_${definition.key}`,
+          header: definition.label,
+          accessorFn: (row) => String(row.properties?.[definition.key] ?? ""),
+          cell: ({ row }) => String(row.original.properties?.[definition.key] ?? "-"),
+        })),
       {
         accessorKey: "supplier",
         header: "Proveedor",
@@ -145,7 +142,7 @@ export function ProductsTable({
         ),
       },
     ],
-    [handleDeleteProduct, handleEditProduct],
+    [handleDeleteProduct, handleEditProduct, propertyDefinitions],
   );
 
   return (
@@ -194,6 +191,8 @@ export function ProductsTable({
             <ProductForm
               key="create-product"
               catalogs={catalogs}
+              propertyDefinitions={propertyDefinitions}
+              propertyOptions={propertyOptions}
               suppliers={suppliers}
               onCancel={() => setShowCreate(false)}
               onSaved={() => setShowCreate(false)}
@@ -212,6 +211,8 @@ export function ProductsTable({
               key={editing.id}
               product={editing}
               catalogs={catalogs}
+              propertyDefinitions={propertyDefinitions}
+              propertyOptions={propertyOptions}
               suppliers={suppliers}
               onCancel={() => setEditing(null)}
               onSaved={() => setEditing(null)}

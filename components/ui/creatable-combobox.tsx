@@ -1,9 +1,10 @@
 "use client";
 
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FloatingListbox } from "@/components/ui/floating-listbox";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,8 @@ export function CreatableCombobox({
   onSelect,
   onCreate,
 }: CreatableComboboxProps) {
+  const listId = useId();
+  const triggerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
   const [localOptions, setLocalOptions] = useState(options);
@@ -80,10 +83,10 @@ export function CreatableCombobox({
   }
 
   return (
-    <div className="relative">
+    <div ref={triggerRef} className="relative">
       <div className="relative">
         <Input
-          aria-controls={open ? "creatable-combobox-list" : undefined}
+          aria-controls={open ? listId : undefined}
           aria-expanded={open}
           aria-haspopup="listbox"
           autoComplete="off"
@@ -129,13 +132,10 @@ export function CreatableCombobox({
         />
       </div>
 
-      {open ? (
-        <div
-          className="absolute z-50 mt-2 w-full overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 shadow-xl shadow-slate-950/10 ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 dark:shadow-black/30 dark:ring-white/10"
-          id="creatable-combobox-list"
-          role="listbox"
-        >
-          <div className="max-h-64 overflow-auto p-1.5">
+      <FloatingListbox id={listId} open={open} triggerRef={triggerRef}>
+        {(position) => (
+          <>
+          <div className="overflow-auto p-1.5" style={{ maxHeight: onCreate ? Math.max(120, position.maxHeight - 48) : position.maxHeight }}>
             {filtered.length === 0 ? (
               <div className="rounded-md bg-slate-50 px-3 py-2.5 text-sm text-slate-500 dark:bg-slate-900/70 dark:text-slate-400">
                 {emptyLabel}
@@ -184,8 +184,9 @@ export function CreatableCombobox({
               </Button>
             </div>
           ) : null}
-        </div>
-      ) : null}
+          </>
+        )}
+      </FloatingListbox>
     </div>
   );
 }

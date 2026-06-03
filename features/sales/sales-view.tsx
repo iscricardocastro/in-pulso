@@ -1807,6 +1807,7 @@ function saleItemProduct(item: NonNullable<Sale["items"]>[number]) {
     suggested_price: item.suggested_price,
     current_stock: (item.products?.current_stock ?? 0) + item.quantity,
     minimum_stock: 0,
+    properties: {},
     primary_supplier_id: null,
     notes: null,
     created_at: item.created_at,

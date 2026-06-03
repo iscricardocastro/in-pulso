@@ -28,6 +28,7 @@ export const productSchema = z.object({
   minimum_stock: z.coerce.number().int().min(0, "Minimo invalido"),
   primary_supplier_id: z.string().optional(),
   supplier: z.string().optional(),
+  properties: z.record(z.string(), z.unknown()).default({}),
   notes: z.string().optional(),
 });
 
