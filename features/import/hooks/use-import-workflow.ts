@@ -4,7 +4,7 @@ import { type ChangeEvent, useMemo, useState, useTransition } from "react";
 import readXlsxFile from "read-excel-file/browser";
 import { toast } from "sonner";
 import { baseMappingTargets } from "@/features/import/constants";
-import type { ProductDraft, WorkbookSheet } from "@/features/import/types";
+import type { MappingTarget, ProductDraft, WorkbookSheet } from "@/features/import/types";
 import {
   applyEditedRows,
   buildPreview,
@@ -39,7 +39,7 @@ export function useImportWorkflow(
   const [pending, startTransition] = useTransition();
 
   const activeSheet = sheets.find((sheet) => sheet.sheet === selectedSheet);
-  const mappingTargets = useMemo(
+  const mappingTargets = useMemo<MappingTarget[]>(
     () => [
       ...baseMappingTargets,
       ...propertyDefinitions.map((definition) => ({
@@ -60,6 +60,12 @@ export function useImportWorkflow(
   const errorCount = preview.reduce((total, row) => total + row.errors.length, 0);
   const warningCount = preview.reduce((total, row) => total + row.warnings.length, 0);
   const ignoredCount = preview.filter((row) => row.ignored).length;
+  const requiredTemplateFields = useMemo(() => propertyDefinitions.filter((definition) => definition.required), [propertyDefinitions]);
+  const unmappedRequiredFields = useMemo(
+    () => requiredTemplateFields.filter((definition) => !mapping[`property:${definition.key}`]),
+    [mapping, requiredTemplateFields],
+  );
+  const isTemplateReadyForImport = unmappedRequiredFields.length === 0;
 
   async function readFile(file: File) {
     setFileName(file.name);
@@ -136,6 +142,11 @@ export function useImportWorkflow(
   }
 
   function runImport() {
+    if (!isTemplateReadyForImport) {
+      toast.error(`Mapea: ${unmappedRequiredFields.map((field) => field.label).join(", ")}`);
+      return;
+    }
+
     if (importableRows.length === 0) {
       toast.error("No hay filas con nombre para importar");
       return;
@@ -169,6 +180,9 @@ export function useImportWorkflow(
     columns,
     preview,
     importableRows,
+    requiredTemplateFields,
+    unmappedRequiredFields,
+    isTemplateReadyForImport,
     errorCount,
     warningCount,
     ignoredCount,

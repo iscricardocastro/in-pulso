@@ -1,4 +1,8 @@
+import { roundMoney } from "@/lib/money";
+import { parseNumberValue } from "@/lib/value-parsing";
 import type { DiscountType } from "@/types/database";
+
+export { roundMoney };
 
 export type DiscountInput = {
   type?: DiscountType | null;
@@ -12,12 +16,7 @@ export type SaleCalculationItem = {
 };
 
 export function toNumber(value: number | string | null | undefined) {
-  const numeric = Number(value ?? 0);
-  return Number.isFinite(numeric) ? numeric : 0;
-}
-
-export function roundMoney(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  return parseNumberValue(value) ?? 0;
 }
 
 export function discountAmount(base: number, discount?: DiscountInput) {

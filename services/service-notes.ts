@@ -8,6 +8,8 @@ import {
   serviceNoteStatusSchema,
   serviceTemplateSchema,
 } from "@/features/service-notes/schemas";
+import { roundMoney } from "@/lib/money";
+import { slugKey } from "@/lib/slug";
 import { requireUserContext } from "@/services/context";
 import type {
   CatalogItem,
@@ -483,10 +485,6 @@ function discountAmount(subtotal: number, type: DiscountType | null, value: numb
   return roundMoney(Math.min(value, subtotal));
 }
 
-function roundMoney(value: number) {
-  return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
-}
-
 function sortServiceNoteRelations(note: ServiceNote) {
   return {
     ...note,
@@ -494,15 +492,6 @@ function sortServiceNoteRelations(note: ServiceNote) {
     items: [...(note.items ?? [])].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at)),
     payments: [...(note.payments ?? [])].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at)),
   };
-}
-
-function slugKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
 }
 
 function revalidateServiceNotePaths() {
