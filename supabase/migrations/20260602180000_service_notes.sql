@@ -118,13 +118,11 @@ create index service_note_payments_note_idx on public.service_note_payments (ten
 create index service_note_events_note_created_idx on public.service_note_events (tenant_id, service_note_id, created_at desc);
 
 insert into public.service_templates (tenant_id, name, fields)
-select id, 'Reparacion general', '[
-  {"key":"brand","label":"Marca"},
-  {"key":"model","label":"Modelo"},
-  {"key":"serial","label":"Serie/IMEI"},
-  {"key":"issue","label":"Falla reportada"},
-  {"key":"accessories","label":"Accesorios"},
-  {"key":"condition","label":"Condiciones"}
+select id, 'Servicio general', '[
+  {"key":"item","label":"Elemento"},
+  {"key":"reference","label":"Referencia"},
+  {"key":"detail","label":"Detalle"},
+  {"key":"notes","label":"Notas"}
 ]'::jsonb
 from public.tenants
 on conflict (tenant_id, name) do nothing;

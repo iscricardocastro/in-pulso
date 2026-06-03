@@ -946,7 +946,11 @@ function ProductSearchBox({ onSelect }: { onSelect: (product: ProductOption) => 
 function TemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: (template: ServiceTemplate) => void }) {
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
-  const [fields, setFields] = useState([{ key: "marca", label: "Marca" }, { key: "modelo", label: "Modelo" }]);
+  const [fields, setFields] = useState([
+    { key: "elemento", label: "Elemento" },
+    { key: "referencia", label: "Referencia" },
+    { key: "detalle", label: "Detalle" },
+  ]);
 
   function submit() {
     startTransition(async () => {
@@ -1031,7 +1035,7 @@ function ServiceNoteReceiptPrintArea({ context, note, size }: { context: Receipt
         </section>
         {Object.entries(note.device_fields ?? {}).length > 0 ? (
           <section className="sale-receipt-section">
-            <p className="sale-receipt-subtitle">Equipo</p>
+            <p className="sale-receipt-subtitle">Detalle</p>
             {Object.entries(note.device_fields).map(([key, value]) => (
               value ? <ReceiptLine key={key} label={fieldLabel(note.template?.fields ?? [], key)} value={value} /> : null
             ))}
