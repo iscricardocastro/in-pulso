@@ -20,6 +20,7 @@ import {
   Tags,
   Truck,
   Upload,
+  UserRound,
   UsersRound,
   X,
   type LucideIcon,
@@ -69,7 +70,10 @@ const navGroups = [
   },
   {
     label: "Sistema",
-    items: [{ href: "/settings" as Route, label: "Configuracion", icon: Settings }],
+    items: [
+      { href: "/profile" as Route, label: "Mi perfil", icon: UserRound },
+      { href: "/settings" as Route, label: "Configuracion", icon: Settings },
+    ],
   },
 ] satisfies { label: string; items: NavItem[] }[];
 

@@ -32,6 +32,16 @@ export type PlatformUser = {
   updated_at: string;
 };
 
+export type UserProfile = {
+  id: string;
+  tenant_id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BillingCycle = "monthly" | "yearly";
 export type TenantSubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
 export type BillingEventType = "payment" | "adjustment" | "cancellation" | "note";

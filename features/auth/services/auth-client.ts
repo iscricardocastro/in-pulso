@@ -12,8 +12,12 @@ export async function sendPasswordResetEmail(email: string, redirectTo: string) 
   if (error) throw new Error(error.message);
 }
 
+export async function updatePassword(password: string) {
+  const { error } = await createSupabaseBrowserClient().auth.updateUser({ password });
+  if (error) throw new Error(error.message);
+}
+
 export async function signOut() {
   const { error } = await createSupabaseBrowserClient().auth.signOut();
   if (error) throw new Error(error.message);
 }
-
