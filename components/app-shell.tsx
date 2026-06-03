@@ -7,7 +7,7 @@ import { getPlatformAdminContext, requireUserContext } from "@/services/context"
 import { SignOutButton } from "@/features/auth/sign-out-button";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, UserRound } from "lucide-react";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const { supabase, profile } = await requireUserContext();
@@ -49,9 +49,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="max-w-36 truncate text-sm font-semibold">{companyName}</span>
               </div>
               <div className="flex items-center gap-2">
-                <p className="hidden max-w-44 truncate text-sm text-muted-foreground md:block">
-                  {profile.full_name || profile.email}
-                </p>
+                <Button asChild className="hidden max-w-52 px-3 md:inline-flex" size="sm" variant="ghost">
+                  <Link href="/profile">
+                    <UserRound className="h-4 w-4" />
+                    <span className="truncate">{profile.full_name || profile.email}</span>
+                  </Link>
+                </Button>
                 {platformContext ? (
                   <Button asChild className="hidden md:inline-flex" size="sm" variant="outline">
                     <Link href="/admin">
